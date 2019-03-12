@@ -8,26 +8,50 @@ public class DirectoryServer {
 		String itemName; 
 		String targetIp;
 		Hashtable<String, String> database = new Hashtable<String, String>();
-		ServerSocket socket = new ServerSocket(6789); 
+		DatagramSocket socket = new DatagramSocket(6789); 
+		
+		byte[] receiveData = new byte[1024];
+		byte[] sendData = new byte[1024];
+		
+		
 		while(true) {
 			
-			Socket connect = socket.accept(); 
+			DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
 			
-			//Datastream from client via socket
-			BufferedReader inFromClient = new BufferedReader(new InputStreamReader(connect.getInputStream()));
+			socket.receive(receivePacket);
 			
-			//Datastream to client via socket
-			DataOutputStream outToClient = new DataOutputStream(connect.getOutputStream());
+			String message = new String(receivePacket.getData());
+			
+			String command = message.substring(??,??); 
+			
+			InetAddress IPAddress = receivePacket.getAddress();
+
+			int port = receivePacket.getPort();
+			
+			if(command.toLowerCase().equals("query")) {
+	
+				//Get peer IP address from database
+				targetIp = database.get(itemName); 
+			
+				//Response to client
+				endData = targetIp.getBytes(); 
+				DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
+				socket.send(sendPacket); 
+			}
+			else if(command.toLowerCase().equals("init")) {
+			
+			
+			
+			}
+			else if(command.toLowerCase().equals("inform_update")) {
+			
+			
+			}
+			else {
+			
+			}
 			
 			//read data retrieved from socket
-			itemName = inFromClient.readLine(); 
-			itemName = itemName.toLowerCase(); 
-			
-			//Get peer IP address from database
-			targetIp = database.get(itemName); 
-			
-			//Response to client
-			outToClient.writeBytes(targetIp); 
 			
 		}
 		
