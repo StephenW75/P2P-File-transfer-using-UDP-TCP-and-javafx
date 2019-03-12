@@ -29,7 +29,7 @@ public class DirectoryServer {
 			int port = receivePacket.getPort();
 			
 			if(command.toLowerCase().equals("query")) {
-	
+				itemName = messageData; 
 				//Get peer IP address from database
 				targetIp = database.get(itemName); 
 			
