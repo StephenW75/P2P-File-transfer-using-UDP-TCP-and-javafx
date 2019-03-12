@@ -44,8 +44,8 @@ public class DirectoryServer {
 			}
 			
 			else if(command.toLowerCase().equals("init")) {
-			
-			
+				String dhtAddresses = InetAddress.getLocalHost().getHostAddress()+"\n";
+				//... 
 			
 			}
 			
