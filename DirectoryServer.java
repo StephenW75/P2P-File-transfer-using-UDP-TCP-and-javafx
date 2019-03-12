@@ -34,7 +34,7 @@ public class DirectoryServer {
 				targetIp = database.get(itemName); 
 			
 				//Response to client
-				endData = targetIp.getBytes(); 
+				sendData = ("queryresponse\n"+targetIp).getBytes(); 
 				DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
 				socket.send(sendPacket); 
 			}
