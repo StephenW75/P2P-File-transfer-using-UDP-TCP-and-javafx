@@ -20,17 +20,21 @@ public class DirectoryServer {
 			
 			socket.receive(receivePacket);
 			
+			//Read data and interpret retrieved from socket
 			String message = new String(receivePacket.getData());
-			
 			String command = message.substring(0,message.indexOf("\n")); 
 			String messageData = message.substring(message.indexOf("\n"), message.length()); 
+			
+			//Receive client info
 			InetAddress IPAddress = receivePacket.getAddress();
-
 			int port = receivePacket.getPort();
 			
+			//Determine action based on data from retrieved from socket
 			if(command.toLowerCase().equals("query")) {
+				//Message header is query request, so rest of message is the name of component requested
 				itemName = messageData; 
-				//Get peer IP address from database
+				
+				//Get IP address of peer with the component from database
 				targetIp = database.get(itemName); 
 			
 				//Response to client
@@ -38,11 +42,13 @@ public class DirectoryServer {
 				DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
 				socket.send(sendPacket); 
 			}
+			
 			else if(command.toLowerCase().equals("init")) {
 			
 			
 			
 			}
+			
 			else if(command.toLowerCase().equals("inform_update")) {
 			
 			
@@ -51,13 +57,12 @@ public class DirectoryServer {
 			
 			}
 			
-			//read data retrieved from socket
-			
-		}
+		}//end of while true
 		
-	}
+	}// end of main
 	
-	//1. initialize database contents
+	
+	//Initialize database contents
 	 public static Hashtable<String, String> init() {
 		 Hashtable<String, String> result = new Hashtable<String, String>();
 		 
@@ -68,7 +73,7 @@ public class DirectoryServer {
 		 
 		 return result; 
 		 
-	 }
-	//end 1. 
+	 }//end of init
 	
-}
+	
+}//end of class
