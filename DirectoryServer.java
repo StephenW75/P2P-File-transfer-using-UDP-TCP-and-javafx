@@ -22,6 +22,8 @@ public class DirectoryServer {
 		}
 		
 	}
+	
+	//1. initialize database contents
 	 public static Hashtable<String, String> init() {
 		 Hashtable<String, String> result = new Hashtable<String, String>();
 		 
@@ -33,6 +35,6 @@ public class DirectoryServer {
 		 return result; 
 		 
 	 }
-	
+	//end 1. 
 	
 }
