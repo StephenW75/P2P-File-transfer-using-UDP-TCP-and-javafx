@@ -22,8 +22,8 @@ public class DirectoryServer {
 			
 			String message = new String(receivePacket.getData());
 			
-			String command = message.substring(??,??); 
-			
+			String command = message.substring(0,message.indexOf("\n")); 
+			String messageData = message.substring(message.indexOf("\n"), message.length()); 
 			InetAddress IPAddress = receivePacket.getAddress();
 
 			int port = receivePacket.getPort();
