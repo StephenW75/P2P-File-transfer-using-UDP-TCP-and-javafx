@@ -17,7 +17,7 @@ public class DHTListener implements Runnable{
 	
 	public void run() {
 		try {
-			 socket = new ServerSocket(6789);
+			 socket = new ServerSocket(7024);
 		}
 		catch(IOException e) {
 			System.out.println(e.getMessage());

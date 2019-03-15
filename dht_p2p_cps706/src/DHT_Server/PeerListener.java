@@ -20,19 +20,19 @@ public class PeerListener implements Runnable {
 		DatagramSocket socket = null;
 		
 		try {
-			socket = new DatagramSocket(6789); 
+			socket = new DatagramSocket(7024); 
 		}
 		catch(SocketException e) {
 			e.printStackTrace();
 		}
 		finally {
-			socket.close(); 
+			//this is always called
+			//socket.close(); 
 		}
 		
 		byte[] receiveData = new byte[1024];
 		byte[] sendData = new byte[1024];
 
-		
 		while(true) {
 			
 			DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
@@ -43,7 +43,6 @@ public class PeerListener implements Runnable {
 			catch(IOException e) {
 				e.printStackTrace();
 			}
-			
 			//Read data and interpret retrieved from socket
 			String message = new String(receivePacket.getData());
 			String command = message.substring(0,message.indexOf("\n")); 
@@ -91,12 +90,23 @@ public class PeerListener implements Runnable {
 			
 			}
 			else {
+				//Testing for Response
+				sendData = ("messageData: " + messageData + "... was received").getBytes(); 
+				DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
+				try {
+					socket.send(sendPacket);
+				}
+				catch(IOException e) {
+					e.printStackTrace();
+				}
 			
 			}
 			
 		}//end of while true
 	
 	}// end of run
+	
+	
 	public void start() {
 		System.out.println("Starting " +  threadName );
 	      if (t == null) {

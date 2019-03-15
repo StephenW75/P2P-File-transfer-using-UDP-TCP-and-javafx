@@ -87,8 +87,9 @@ public class Client extends Application{
 		HBox sendMessageArea = new HBox();
 		Button sendButton = new Button("Send");
 		Button clearButton = new Button("Clear");
-		TextField msgInput = new TextField();
+		TextArea msgInput = new TextArea();
 		msgInput.setPrefWidth(400);
+		msgInput.setPrefHeight(400);
 		// Send Message Logic
 		sendButton.setOnAction(e -> dhtSend(msgInput.getText()));
 		clearButton.setOnAction(e -> msgInput.setText(""));
@@ -128,8 +129,8 @@ public class Client extends Application{
 	void dhtSend(String s) {
 		try {
 			String reply = messenger.sendMessage(s);
-			pushLog("Sent Message: " + s);
-			pushLog("Reply: " + reply);
+			pushLog("Sent Message:\n" + s);
+			pushLog("Reply:\n" + reply);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

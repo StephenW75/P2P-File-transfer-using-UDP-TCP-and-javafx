@@ -12,14 +12,14 @@ public class UDP_Messenger {
 	private byte[] buf;
 	
 	UDP_Messenger() throws Exception {
-		socket = new DatagramSocket(6789);
+		socket = new DatagramSocket(9023);
 		recipientIP = InetAddress.getByName("localhost"); //Need IP of a DHT
 	}
 	
 	// Once message is sent, wait for a reply
 	String sendMessage(String msg) throws Exception {
 		buf = msg.getBytes();
-		DatagramPacket packet = new DatagramPacket(buf, buf.length, recipientIP,6789);
+		DatagramPacket packet = new DatagramPacket(buf, buf.length, recipientIP,7024);
 		socket.send(packet);
 		packet = new DatagramPacket(buf, buf.length);
 		socket.receive(packet);
