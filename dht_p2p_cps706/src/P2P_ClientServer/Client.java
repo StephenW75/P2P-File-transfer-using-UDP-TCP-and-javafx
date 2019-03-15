@@ -11,9 +11,12 @@ import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Menu;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 
@@ -24,6 +27,10 @@ public class Client extends Application{
 	Button _B_quit;
 	UDP_Messenger messenger;
 	
+	//IP of DHTs here!
+	static final String dht1ip = "google.com";
+	static final String dht2ip = "reddit.com";
+	
 	@Override
 	public void start(Stage primaryStage) throws Exception {
 		
@@ -33,12 +40,9 @@ public class Client extends Application{
 		try {
 			messenger = new UDP_Messenger();
 		} catch (Exception e) {
-			e.printStackTrace();
+			System.out.println("Could not create messenger");
+			System.out.println(e.toString());
 		}
-		
-		//IP of DHTs here!
-		String dht1ip = "google.com";
-		String dht2ip = "reddit.com";
 		
 		/*
 		 * UI & Logic Stuff Here!
@@ -57,37 +61,19 @@ public class Client extends Application{
 		//------------------
 		Menu edit = new Menu("Edit");
 		Menu editSelDHT = new Menu("Select DHT (ip)");
+		ToggleGroup selDHTGroup = new ToggleGroup();
 		RadioMenuItem dht1 = new RadioMenuItem("192.168.bla.1");
 		RadioMenuItem dht2 = new RadioMenuItem("192.168.bla.2");
-		ToggleGroup selDHTGroup = new ToggleGroup();
-		selDHTGroup.getToggles().addAll(dht1, dht2);
 		// Menu Logic
 		fileQuit.setOnAction(e -> Platform.exit());
-		dht1.setOnAction(event -> {
-			pushLog("Switching to DHT 1");
-			try {
-				pushLog(messenger.setDHT_IP(InetAddress.getByName(dht1ip)));
-			} catch (UnknownHostException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-				pushLog("Could not switch");
-			}
-		});
-		dht2.setOnAction(event -> {
-			pushLog("Switching to DHT 2");
-			try {
-				pushLog(messenger.setDHT_IP(InetAddress.getByName(dht2ip)));
-			} catch (UnknownHostException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-				pushLog("Could not switch");
-			}
-		});
-		// Putting Menu together
+		dht1.setOnAction(event -> setDHT_ip(dht1ip));
+		dht2.setOnAction(event -> setDHT_ip(dht2ip));
+		// Assemble Menu
 		mainMenu.getMenus().addAll(file, edit);
 		file.getItems().addAll(fileOpen, fileQuit);
 		edit.getItems().addAll(editSelDHT);
 		editSelDHT.getItems().addAll(dht1, dht2);
+		selDHTGroup.getToggles().addAll(dht1, dht2);
 		
 		// Log Area
 		logTextArea = new TextArea("Client Started");
@@ -96,19 +82,65 @@ public class Client extends Application{
 		logTextArea.setMinHeight(26);
 		logTextArea.setPrefHeight(100);
 		
+		// Send Message Area
+		VBox centerLayout = new VBox();
+		HBox sendMessageArea = new HBox();
+		Button sendButton = new Button("Send");
+		Button clearButton = new Button("Clear");
+		TextField msgInput = new TextField();
+		msgInput.setPrefWidth(400);
+		// Send Message Logic
+		sendButton.setOnAction(e -> dhtSend(msgInput.getText()));
+		clearButton.setOnAction(e -> msgInput.setText(""));
+		// Assemble Send Message Area
+		sendMessageArea.getChildren().addAll(msgInput, sendButton, clearButton);
+		centerLayout.getChildren().addAll(sendMessageArea);
+		
+		// Assemble main layout
 		mainLayout.setTop(mainMenu);
 		mainLayout.setBottom(logTextArea);
+		mainLayout.setCenter(centerLayout);
 		
-		Scene mainWindow = new Scene(mainLayout, 800, 600);
-
-		window.setScene(mainWindow);
+		window.setScene(new Scene(mainLayout, 800, 600));
 		window.show();
+		
+		pushLog("Messenger created on port: " + messenger.getPort());
 		
 	}
 	
-	
 	void pushLog(String log) {
 		logTextArea.appendText("\n" + log);
+	}
+	
+	void setDHT_ip(String dhtip) {
+		pushLog("Switching DHT IP");
+		try {
+			pushLog(messenger.setRecipientIP(InetAddress.getByName(dhtip)));
+		} catch (UnknownHostException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			pushLog("Could not switch");
+		}
+		
+	}
+	
+	//This will block until there is a reply
+	void dhtSend(String s) {
+		try {
+			String reply = messenger.sendMessage(s);
+			pushLog("Sent Message: " + s);
+			pushLog("Reply: " + reply);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			pushLog("Could not send message!");
+		}
+		
+	}
+	
+	@Override
+	public void stop() {
+		messenger.close();
 	}
 	
 	public static void main(String[] args){
