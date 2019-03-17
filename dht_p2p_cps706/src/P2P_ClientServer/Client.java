@@ -27,9 +27,11 @@ public class Client extends Application{
 	Button _B_quit;
 	UDP_Messenger messenger;
 	
-	//IP of DHTs here!
+	// IP of DHTs here!
 	static final String dht1ip = "google.com";
 	static final String dht2ip = "reddit.com";
+	// DHT port
+	private static final int dhtPort = 7080;
 	
 	@Override
 	public void start(Stage primaryStage) throws Exception {
@@ -38,7 +40,7 @@ public class Client extends Application{
 		 * NETWORKING STUFF HERE
 		 */
 		try {
-			messenger = new UDP_Messenger();
+			messenger = new UDP_Messenger(dhtPort);
 		} catch (Exception e) {
 			System.out.println("Could not create messenger");
 			System.out.println(e.toString());

@@ -9,40 +9,51 @@ import java.rmi.UnknownHostException;
 import java.util.Hashtable;
 
 public class PeerListener implements Runnable {
+	
+	private final int MAX_BUFFER = 1024;
+	
 	private Thread t; 
 	private String threadName;
 	
+	// public socket allows us to socket.close() while run() is blocked
+	public DatagramSocket socket;
+	private DatagramPacket receivePacket;
+	private byte[] receiveData;
+	private byte[] sendData;
 	
-	public void run() {
-		String itemName; 
-		String targetIp;
-		Hashtable<String, String> database = new Hashtable<String, String>();
-		DatagramSocket socket = null;
-		
+	// Constructor
+	PeerListener(int port) {
 		try {
-			socket = new DatagramSocket(7024); 
+			socket = new DatagramSocket(port); 
 		}
 		catch(SocketException e) {
 			e.printStackTrace();
 		}
-		finally {
-			//this is always called
-			//socket.close(); 
-		}
+		receiveData = new byte[MAX_BUFFER];
+		receivePacket = new DatagramPacket(receiveData, receiveData.length);
+	}
+	
+	
+	
+	public void run() {
 		
-		byte[] receiveData = new byte[1024];
-		byte[] sendData = new byte[1024];
-
-		while(true) {
+		String itemName; 
+		String targetIp;
+		Hashtable<String, String> database = new Hashtable<String, String>();
+		
+		// Loop until exception!
+		while (true) {
 			
-			DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-			
+			// Wait for packet to be received (socket.close() can be called from main)
 			try {
 				socket.receive(receivePacket);
+				
+			// socket.close() from main will throw here
+			} catch (Exception e) {
+				System.out.println(e.getMessage());
+				break;
 			}
-			catch(IOException e) {
-				e.printStackTrace();
-			}
+			
 			//Read data and interpret retrieved from socket
 			String message = new String(receivePacket.getData());
 			String command = message.substring(0,message.indexOf("\n")); 
@@ -53,7 +64,7 @@ public class PeerListener implements Runnable {
 			int port = receivePacket.getPort();
 			
 			//Determine action based on data from retrieved from socket
-			if(command.toLowerCase().equals("query")) {
+			if (command.toLowerCase().equals("query")) {
 				//Message header is query request, so rest of message is the name of component requested
 				itemName = messageData; 
 				
@@ -69,9 +80,7 @@ public class PeerListener implements Runnable {
 				catch(IOException e) {
 					e.printStackTrace();
 				}
-			}
-			
-			else if(command.toLowerCase().equals("init")) {
+			} else if (command.toLowerCase().equals("init")) {
 				try {
 				
 					String dhtAddresses = InetAddress.getLocalHost().getHostAddress()+"\n";
@@ -95,15 +104,12 @@ public class PeerListener implements Runnable {
 				DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
 				try {
 					socket.send(sendPacket);
-				}
-				catch(IOException e) {
+				} catch(IOException e) {
 					e.printStackTrace();
 				}
-			
 			}
-			
 		}//end of while true
-	
+		socket.close();
 	}// end of run
 	
 	
@@ -114,11 +120,4 @@ public class PeerListener implements Runnable {
 	         t.start();
 	      }	
 	}
-	
-	
-	
-	
-	
-	
-	
 }

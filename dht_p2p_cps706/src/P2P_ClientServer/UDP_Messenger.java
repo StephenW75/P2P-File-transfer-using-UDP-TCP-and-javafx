@@ -8,18 +8,20 @@ public class UDP_Messenger {
 
 	private DatagramSocket socket;
 	private InetAddress recipientIP;
+	private int recipientPort;
 	
 	private byte[] buf;
 	
-	UDP_Messenger() throws Exception {
+	UDP_Messenger(int recipientPort) throws Exception {
 		socket = new DatagramSocket(9023);
 		recipientIP = InetAddress.getByName("localhost"); //Need IP of a DHT
+		this.recipientPort = recipientPort; 
 	}
 	
 	// Once message is sent, wait for a reply
 	String sendMessage(String msg) throws Exception {
 		buf = msg.getBytes();
-		DatagramPacket packet = new DatagramPacket(buf, buf.length, recipientIP,7024);
+		DatagramPacket packet = new DatagramPacket(buf, buf.length, recipientIP, recipientPort);
 		socket.send(packet);
 		packet = new DatagramPacket(buf, buf.length);
 		socket.receive(packet);
