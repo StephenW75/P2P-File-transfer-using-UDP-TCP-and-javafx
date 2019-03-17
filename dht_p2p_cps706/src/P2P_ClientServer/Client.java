@@ -131,8 +131,8 @@ public class Client extends Application{
 	void dhtSend(String s) {
 		try {
 			String reply = messenger.sendMessage(s);
-			pushLog("Sent Message:\n" + s);
-			pushLog("Reply:\n" + reply);
+			//System.out.println(reply);
+			pushLog(String.format("---==REPLY==---\n%s\n---===END===---", reply));
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

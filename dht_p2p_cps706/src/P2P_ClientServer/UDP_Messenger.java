@@ -5,7 +5,9 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 
 public class UDP_Messenger {
-
+	
+	private final int MAX_BUFFER = 1024;
+	
 	private DatagramSocket socket;
 	private InetAddress recipientIP;
 	private int recipientPort;
@@ -15,17 +17,22 @@ public class UDP_Messenger {
 	UDP_Messenger(int recipientPort) throws Exception {
 		socket = new DatagramSocket(9023);
 		recipientIP = InetAddress.getByName("localhost"); //Need IP of a DHT
-		this.recipientPort = recipientPort; 
+		this.recipientPort = recipientPort;
 	}
 	
 	// Once message is sent, wait for a reply
 	String sendMessage(String msg) throws Exception {
 		buf = msg.getBytes();
 		DatagramPacket packet = new DatagramPacket(buf, buf.length, recipientIP, recipientPort);
+		System.out.println("Length of Packet Sent: " + packet.getLength());
 		socket.send(packet);
+		// Wait for response
+		buf = new byte[MAX_BUFFER];
 		packet = new DatagramPacket(buf, buf.length);
 		socket.receive(packet);
-		return new String(packet.getData(), 0, packet.getLength());
+		String reply = new String(packet.getData());
+		System.out.println("Length of Packet Recv: " + packet.getLength());
+		return reply;
 	}
 	
 	String setRecipientIP(InetAddress newIP) {

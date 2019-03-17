@@ -3,9 +3,7 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.net.Socket;
 import java.net.SocketException;
-import java.rmi.UnknownHostException;
 import java.util.Hashtable;
 
 public class PeerListener implements Runnable {
@@ -57,7 +55,7 @@ public class PeerListener implements Runnable {
 			//Read data and interpret retrieved from socket
 			String message = new String(receivePacket.getData());
 			String command = message.substring(0,message.indexOf("\n")); 
-			String messageData = message.substring(message.indexOf("\n"), message.length()); 
+			String messageData = message.substring(message.indexOf("\n") + 1, message.length()); 
 			
 			//Receive client info
 			InetAddress IPAddress = receivePacket.getAddress();
@@ -100,8 +98,10 @@ public class PeerListener implements Runnable {
 			}
 			else {
 				//Testing for Response
-				sendData = ("messageData: " + messageData + "... was received").getBytes(); 
+				String resp = String.format("UNKNOWN HEADER: %s\n%s", command, messageData);
+				sendData = resp.getBytes();
 				DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
+				System.out.println("Length of Packet S: " + sendPacket.getLength());
 				try {
 					socket.send(sendPacket);
 				} catch(IOException e) {
