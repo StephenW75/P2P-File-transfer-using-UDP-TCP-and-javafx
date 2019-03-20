@@ -78,8 +78,7 @@ public class PeerListener implements Runnable {
 				DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
 				try {
 					socket.send(sendPacket);
-				}
-				catch(IOException e) {
+				} catch(IOException e) {
 					e.printStackTrace();
 				}
 			} else if (command.toLowerCase().equals("init")) {

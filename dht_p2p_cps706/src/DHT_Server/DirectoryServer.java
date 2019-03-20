@@ -1,7 +1,5 @@
 package DHT_Server;
-import java.io.*;
 import java.util.*;
-import java.net.*;
 
 
 public class DirectoryServer{
