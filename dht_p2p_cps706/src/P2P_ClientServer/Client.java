@@ -7,15 +7,19 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.RadioMenuItem;
+import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Menu;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
@@ -52,11 +56,7 @@ public class Client extends Application{
 		window = primaryStage;
 		window.setTitle("P2P Client");
 		
-		// Main layout
-		BorderPane mainLayout = new BorderPane();
-		
-		// Menu
-		MenuBar mainMenu = new MenuBar();
+		// Top Menu
 		Menu file = new Menu("File");
 		MenuItem fileOpen = new MenuItem("Open");
 		MenuItem fileQuit = new MenuItem("Quit");
@@ -71,44 +71,55 @@ public class Client extends Application{
 		dht1.setOnAction(event -> setDHT_ip(dht1ip));
 		dht2.setOnAction(event -> setDHT_ip(dht2ip));
 		// Assemble Menu
-		mainMenu.getMenus().addAll(file, edit);
+		MenuBar mainMenu = new MenuBar(file, edit);
 		file.getItems().addAll(fileOpen, fileQuit);
 		edit.getItems().addAll(editSelDHT);
 		editSelDHT.getItems().addAll(dht1, dht2);
 		selDHTGroup.getToggles().addAll(dht1, dht2);
 		
+		
+		
+		// Main Area
+		ListView<File> fileListView = new ListView<File>();
+		TextArea searchTextArea = new TextArea();
+		Button queryButton = new Button("Search");
+		TextArea pathTextArea = new TextArea();
+		Button downloadButton = new Button("Download");
 		// Log Area
 		logTextArea = new TextArea("Client Started");
 		logTextArea.setStyle("-fx-focus-color: transparent; -fx-faint-focus-color: transparent;");
 		logTextArea.setEditable(false);
-		logTextArea.setMinHeight(26);
-		logTextArea.setPrefHeight(100);
-		
-		// Send Message Area
-		VBox centerLayout = new VBox();
-		HBox sendMessageArea = new HBox();
-		Button sendButton = new Button("Send");
-		Button clearButton = new Button("Clear");
-		TextArea msgInput = new TextArea();
-		msgInput.setPrefWidth(400);
-		msgInput.setPrefHeight(400);
-		// Send Message Logic
-		sendButton.setOnAction(e -> dhtSend(msgInput.getText()));
-		clearButton.setOnAction(e -> msgInput.setText(""));
-		// Assemble Send Message Area
-		sendMessageArea.getChildren().addAll(msgInput, sendButton, clearButton);
-		centerLayout.getChildren().addAll(sendMessageArea);
+		logTextArea.setMinHeight(80);
+		// Main Area Logic
+		queryButton.setOnAction(e -> search(searchTextArea.getText()));
+		downloadButton.setOnAction(e -> {System.out.print("d");});
+		// Assemble Main Area
+		fileListView.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
+		pathTextArea.setMinHeight(25);
+		pathTextArea.setPrefHeight(25);
+		searchTextArea.setMinHeight(25);
+		searchTextArea.setPrefHeight(25);
+		HBox searchArea = new HBox(searchTextArea, queryButton);
+		searchArea.setHgrow(searchTextArea, Priority.ALWAYS);
+		HBox downloadArea = new HBox(pathTextArea, downloadButton);
+		downloadArea.setHgrow(pathTextArea, Priority.ALWAYS);
+		VBox centerLayout = new VBox(searchArea, fileListView, downloadArea, logTextArea);
+		fileListView.setPrefHeight(Integer.MAX_VALUE);
+		centerLayout.setVgrow(fileListView, Priority.ALWAYS);
 		
 		// Assemble main layout
-		mainLayout.setTop(mainMenu);
-		mainLayout.setBottom(logTextArea);
-		mainLayout.setCenter(centerLayout);
+		VBox mainLayout = new VBox(mainMenu, centerLayout);
 		
 		window.setScene(new Scene(mainLayout, 800, 600));
 		window.show();
 		
 		pushLog("Messenger created on port: " + messenger.getPort());
 		
+	}
+	
+	void search(String key) {
+		String message = String.format("query\n%s", key);
+		dhtSend(message);
 	}
 	
 	void pushLog(String log) {
@@ -138,7 +149,6 @@ public class Client extends Application{
 			e.printStackTrace();
 			pushLog("Could not send message!");
 		}
-		
 	}
 	
 	@Override

@@ -10,18 +10,18 @@ public class DirectoryServer{
 	
 	public static void main(String[] args) throws Exception{
 		//DHTListener socket1 = new DHTListener(port);
-		PeerListener socket2 = new PeerListener(port);
+		PeerListener pListener = new PeerListener(port);
 		//Thread t1 = new Thread(socket1);
-		Thread t2 = new Thread(socket2);
+		Thread pThread = new Thread(pListener);
 		//t1.start();
-		t2.start();
+		pThread.start();
 		
 		System.out.println("Press any key to close server");
 		System.in.read();
 		
 		//attempt to close sockets
 		//socket1.socket.close();
-		socket2.socket.close();
+		pListener.socket.close();
 	}// end of main
 	
 

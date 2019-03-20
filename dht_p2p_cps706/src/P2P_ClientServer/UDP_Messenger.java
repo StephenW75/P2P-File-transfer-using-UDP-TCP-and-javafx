@@ -24,14 +24,12 @@ public class UDP_Messenger {
 	String sendMessage(String msg) throws Exception {
 		buf = msg.getBytes();
 		DatagramPacket packet = new DatagramPacket(buf, buf.length, recipientIP, recipientPort);
-		System.out.println("Length of Packet Sent: " + packet.getLength());
 		socket.send(packet);
 		// Wait for response
 		buf = new byte[MAX_BUFFER];
 		packet = new DatagramPacket(buf, buf.length);
 		socket.receive(packet);
 		String reply = new String(packet.getData());
-		System.out.println("Length of Packet Recv: " + packet.getLength());
 		return reply;
 	}
 	

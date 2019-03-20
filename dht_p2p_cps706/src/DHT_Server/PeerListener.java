@@ -39,13 +39,17 @@ public class PeerListener implements Runnable {
 		String targetIp;
 		Hashtable<String, String> database = new Hashtable<String, String>();
 		
+		//Filling database with fake data for now
+		database.put("a", "apple");
+		database.put("b", "banana");
+		database.put("c", "corn");
+		
 		// Loop until exception!
 		while (true) {
 			
 			// Wait for packet to be received (socket.close() can be called from main)
 			try {
 				socket.receive(receivePacket);
-				
 			// socket.close() from main will throw here
 			} catch (Exception e) {
 				System.out.println(e.getMessage());
@@ -55,7 +59,8 @@ public class PeerListener implements Runnable {
 			//Read data and interpret retrieved from socket
 			String message = new String(receivePacket.getData());
 			String command = message.substring(0,message.indexOf("\n")); 
-			String messageData = message.substring(message.indexOf("\n") + 1, message.length()); 
+			//receivePacket.getLength() instead of message.length() because message is too long (1024).
+			String messageData = message.substring(message.indexOf("\n") + 1, receivePacket.getLength()); 
 			
 			//Receive client info
 			InetAddress IPAddress = receivePacket.getAddress();
@@ -65,7 +70,6 @@ public class PeerListener implements Runnable {
 			if (command.toLowerCase().equals("query")) {
 				//Message header is query request, so rest of message is the name of component requested
 				itemName = messageData; 
-				
 				//Get IP address of peer with the component from database
 				targetIp = database.get(itemName); 
 			
