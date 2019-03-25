@@ -78,11 +78,16 @@ class TCP_ListenerWorker implements Runnable {
 			
 			// Loop until connection closed
 			while (!isShutdown()) {
+				//Sleep, so computer doesnt use 100% cpu core
+				Thread.sleep(50);
 				if (in.ready()) {
 					System.out.println(in.readLine());
 				}
 			}
 		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		System.out.println(String.format("Thread: %s closed", threadName));
