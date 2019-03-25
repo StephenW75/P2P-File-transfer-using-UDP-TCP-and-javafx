@@ -27,6 +27,7 @@ public class PeerListener implements Runnable {
 		catch(SocketException e) {
 			e.printStackTrace();
 		}
+		threadName = Thread.currentThread().getName();
 		receiveData = new byte[MAX_BUFFER];
 		receivePacket = new DatagramPacket(receiveData, receiveData.length);
 	}
@@ -115,7 +116,7 @@ public class PeerListener implements Runnable {
 		socket.close();
 	}// end of run
 	
-	
+	// *** NOT SURE IF THIS ACRTUALLY RUNS
 	public void start() {
 		System.out.println("Starting " +  threadName );
 	      if (t == null) {

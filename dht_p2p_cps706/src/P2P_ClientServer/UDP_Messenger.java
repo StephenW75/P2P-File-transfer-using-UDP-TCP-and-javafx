@@ -5,10 +5,9 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketTimeoutException;
-import java.util.concurrent.Callable;
 
 // Blocking
-public class UDP_Messenger implements Callable<String>{
+public class UDP_Messenger{
 	
 	//Maximum message length
 	private final int MAX_BUFFER = 1024;
@@ -16,7 +15,6 @@ public class UDP_Messenger implements Callable<String>{
 	private DatagramSocket serverSocket;
 	private InetAddress recipientIP;
 	private int recipientPort;
-	private String message;
 	
 	UDP_Messenger(DatagramSocket serverSocket, InetAddress recipientIP, int recipientPort) throws IOException {
 		this.serverSocket = serverSocket;
@@ -24,13 +22,8 @@ public class UDP_Messenger implements Callable<String>{
 		this.recipientPort = recipientPort;
 	}
 	
-	void setMessage(String message) {
-		this.message = message;
-	}
-	
 	// Once message is sent, wait for a reply
-	public String call() throws Exception {
-		
+	public String sendMessage(String message) {
 		byte[] buffer = message.getBytes();
 		DatagramPacket packet = new DatagramPacket(buffer, buffer.length, recipientIP, recipientPort);
 		
@@ -40,6 +33,7 @@ public class UDP_Messenger implements Callable<String>{
 		} catch (IOException e) {
 			System.out.println("Could not send packet");
 		}
+		
 		
 		// Set max receive buffer size to MAX_BUFFER
 		buffer = new byte[MAX_BUFFER];
@@ -51,10 +45,8 @@ public class UDP_Messenger implements Callable<String>{
 			serverSocket.receive(packet);
 		} catch (SocketTimeoutException e) { 
 			System.out.println("Could not receive packet, timed out after 5s");
-			throw e;
-		} catch (IOException e) {
-			System.out.println("Could not receive packet");
-			throw e;
+		} catch (Exception e) {
+			System.out.println("UDP ServerSocket: " + e.getMessage());
 		}
 		String reply = new String(packet.getData());
 		String shortReply = reply.substring(0, packet.getLength());

@@ -4,10 +4,8 @@ import java.io.IOException;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.ServerSocket;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -30,15 +28,16 @@ public class Client extends Application{
 	// DHT Server Information
 	private static final String dhtIP = "localhost";
 	private static final int dhtServerPort = 7080;
-
-	private static final int clientPort = 7090;
+	
+	private static final String p2pIP = "localhost";
+	private static final int clientPort = 7070;
 	
 	ExecutorService executor = Executors.newCachedThreadPool();
 	
 	UDP_Messenger udpMessenger;
 	TCP_Messenger tcpMessenger;
 	DatagramSocket udpSocket;
-	ServerSocket tcpSocket;
+	ServerSocket tcpServerSocket;
 	
 	TextArea logTextArea;
 	
@@ -51,12 +50,13 @@ public class Client extends Application{
 		udpMessenger = new UDP_Messenger(udpSocket, dhtIpAddress, dhtServerPort);
 		
 		// TCP
-		tcpSocket = new ServerSocket(clientPort);
-		tcpMessenger = new TCP_Messenger(tcpSocket);
-		TCP_Listener tcpWorker = new TCP_Listener(tcpSocket);
+		tcpServerSocket = new ServerSocket(clientPort);
+		InetAddress p2pIpAddress = InetAddress.getByName(p2pIP);
+		tcpMessenger = new TCP_Messenger(p2pIpAddress, clientPort);
+		TCP_Listener tcpServer = new TCP_Listener(tcpServerSocket);
 		
 		// Multi-threading
-		executor.submit(tcpWorker);
+		executor.submit(tcpServer);
 		
 		
 		Stage window = primaryStage;
@@ -64,50 +64,48 @@ public class Client extends Application{
 		window.setScene(new Scene(newGUI(), 800, 600));
 		window.show();
 		
-		pushLog("TCP on port: " + tcpSocket.getLocalPort());
+		pushLog("TCP on port: " + tcpServerSocket.getLocalPort());
 		pushLog("UDP on port: " + udpSocket.getLocalPort());
 		
 	}
 	
+	void dhtSend(String s) {
+		String reply = udpMessenger.sendMessage(s);
+		pushLog(reply);
+	}
 	
 	void search(String key) {
 		String message = String.format("query\n%s", key);
 		dhtSend(message);
 	}
 	
+	void p2pSend(String s) {
+		tcpMessenger.sendMessage(s);
+	}
+	
 	void pushLog(String log) {
 		logTextArea.appendText("\n" + log);
 	}
-
-	void dhtSend(String s) {
-		udpMessenger.setMessage(s);
-		Future<String> reply = executor.submit(udpMessenger);
-		
-		// Do something with reply
-		try {
-			pushLog(reply.get());
-		} catch (ExecutionException e) {
-		// Catches exceptions thrown by thread
-			pushLog(e.getMessage());
-		} catch (InterruptedException e) {
-		// Something went wrong!
-			e.printStackTrace();
-		}
-	}
 	
+	
+	/*
+	 * Cleanup on exit/stop client
+	 */
 	@Override
 	public void stop() {
+		System.out.println("Exiting Client");
 		udpSocket.close();
 		try {
-			tcpSocket.close();
+			tcpServerSocket.close();
+			tcpMessenger.clientSocket.close();
 		} catch (IOException e) {
-			System.out.print("Could not close TCP socket");
+			System.out.print("Could not close TCP");
 		}
 		executor.shutdown();
 	}
 	
 	@SuppressWarnings("static-access")
-	private VBox newGUI() {
+	private VBox newGUI(){
 		// Top Menu
 		Menu file = new Menu("File");
 		MenuItem fileOpen = new MenuItem("Open");
@@ -122,6 +120,7 @@ public class Client extends Application{
 		ListView<File> fileListView = new ListView<File>();
 		TextArea searchTextArea = new TextArea();
 		Button queryButton = new Button("Search");
+		Button tcpSendButton = new Button("TCP Send");
 		TextArea pathTextArea = new TextArea();
 		Button downloadButton = new Button("Download");
 		// Log Area
@@ -131,6 +130,7 @@ public class Client extends Application{
 		logTextArea.setMinHeight(80);
 		// Main Area Logic
 		queryButton.setOnAction(e -> search(searchTextArea.getText()));
+		tcpSendButton.setOnAction(e -> p2pSend(searchTextArea.getText()));
 		downloadButton.setOnAction(e -> {System.out.print("d");});
 		// Assemble Main Area
 		fileListView.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
@@ -138,7 +138,7 @@ public class Client extends Application{
 		pathTextArea.setPrefHeight(25);
 		searchTextArea.setMinHeight(25);
 		searchTextArea.setPrefHeight(25);
-		HBox searchArea = new HBox(searchTextArea, queryButton);
+		HBox searchArea = new HBox(searchTextArea, queryButton, tcpSendButton);
 		searchArea.setHgrow(searchTextArea, Priority.ALWAYS);
 		HBox downloadArea = new HBox(pathTextArea, downloadButton);
 		downloadArea.setHgrow(pathTextArea, Priority.ALWAYS);
