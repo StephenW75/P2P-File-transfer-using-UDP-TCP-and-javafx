@@ -51,7 +51,7 @@ public class TCP_Listener implements Runnable {
 }
 
 /*
- * Handles TCP messages / commands from a TCP connection
+ * Thread which handles TCP messages / commands from a(one) TCP connection
  */
 class TCP_ListenerWorker implements Runnable {
 	
@@ -77,7 +77,7 @@ class TCP_ListenerWorker implements Runnable {
 			BufferedReader in = new BufferedReader (new InputStreamReader(clientSocket.getInputStream()));
 			
 			// Loop until connection closed
-			while (!isShutdown()) {
+			while (!isShutdown() && clientSocket.isConnected()) {
 				//Sleep, so computer doesnt use 100% cpu core
 				Thread.sleep(50);
 				if (in.ready()) {

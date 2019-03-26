@@ -29,7 +29,7 @@ public class Client extends Application{
 	private static final String dhtIP = "localhost";
 	private static final int dhtServerPort = 7080;
 	
-	private static final String p2pIP = "localhost";
+	private static final String p2pIP = "192.168.2.38";
 	private static final int clientPort = 7070;
 	
 	ExecutorService executor = Executors.newCachedThreadPool();
@@ -97,7 +97,7 @@ public class Client extends Application{
 		udpSocket.close();
 		try {
 			tcpServerSocket.close();
-			tcpMessenger.clientSocket.close();
+			tcpMessenger.close();
 		} catch (IOException e) {
 			System.out.print("Could not close TCP");
 		}

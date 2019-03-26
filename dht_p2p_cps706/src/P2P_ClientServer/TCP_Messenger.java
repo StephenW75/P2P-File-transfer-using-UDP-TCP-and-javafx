@@ -11,17 +11,17 @@ import java.net.Socket;
  */
 public class TCP_Messenger{
 	
-	public Socket clientSocket;
-	DataOutputStream out;
+	private Socket clientSocket;
+	private DataOutputStream out;
 
 	// Creates a new TCP connection during construction
-	TCP_Messenger(InetAddress p2pIpAddress, int clientPort) {
+	TCP_Messenger(InetAddress p2pIpAddress, int clientPort) throws IOException {
 		try {
 			// Client creates a socket & hand-shakes with p2p server
 			this.clientSocket = new Socket(p2pIpAddress, clientPort);
 			out = new DataOutputStream(clientSocket.getOutputStream());
 		} catch (IOException e) {
-			System.out.println("TCP_Messenger: Could not create output stream");
+			System.out.println("TCP_Messenger: " + e.getMessage());
 		}
 	}
 	
@@ -38,5 +38,10 @@ public class TCP_Messenger{
 	
 	void sendFile() {
 		
+	}
+	
+	void close() throws IOException {
+		clientSocket.close();
+		out.close();
 	}
 }
