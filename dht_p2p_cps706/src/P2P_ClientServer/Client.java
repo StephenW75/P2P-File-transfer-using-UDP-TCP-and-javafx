@@ -1,11 +1,8 @@
 package P2P_ClientServer;
 
-import java.io.IOException;
+
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.net.ServerSocket;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -29,15 +26,13 @@ public class Client extends Application{
 	private static final String dhtIP = "localhost";
 	private static final int dhtServerPort = 7080;
 	
-	private static final String p2pIP = "192.168.2.38";
 	private static final int clientPort = 7070;
 	
-	ExecutorService executor = Executors.newCachedThreadPool();
-	
 	UDP_Messenger udpMessenger;
-	TCP_Messenger tcpMessenger;
+	TCP_Manager tcpManager;
 	DatagramSocket udpSocket;
-	ServerSocket tcpServerSocket;
+	
+	TCP_Worker w;
 	
 	TextArea logTextArea;
 	
@@ -50,13 +45,9 @@ public class Client extends Application{
 		udpMessenger = new UDP_Messenger(udpSocket, dhtIpAddress, dhtServerPort);
 		
 		// TCP
-		tcpServerSocket = new ServerSocket(clientPort);
-		InetAddress p2pIpAddress = InetAddress.getByName(p2pIP);
-		tcpMessenger = new TCP_Messenger(p2pIpAddress, clientPort);
-		TCP_Listener tcpServer = new TCP_Listener(tcpServerSocket);
-		
-		// Multi-threading
-		executor.submit(tcpServer);
+		tcpManager = new TCP_Manager(clientPort);
+		// new connection (dhtip is localhost rn)
+		w = tcpManager.initHandShake(dhtIpAddress, clientPort);
 		
 		
 		Stage window = primaryStage;
@@ -64,8 +55,8 @@ public class Client extends Application{
 		window.setScene(new Scene(newGUI(), 800, 600));
 		window.show();
 		
-		pushLog("TCP on port: " + tcpServerSocket.getLocalPort());
-		pushLog("UDP on port: " + udpSocket.getLocalPort());
+		pushLog("TCP Server started on port: " + tcpManager.getLocalPort());
+		pushLog("UDP Server started on port: " + udpSocket.getLocalPort());
 		
 	}
 	
@@ -80,7 +71,7 @@ public class Client extends Application{
 	}
 	
 	void p2pSend(String s) {
-		tcpMessenger.sendMessage(s);
+		w.sendRawMessage(s + "\n");
 	}
 	
 	void pushLog(String log) {
@@ -93,15 +84,10 @@ public class Client extends Application{
 	 */
 	@Override
 	public void stop() {
-		System.out.println("Exiting Client");
+		System.out.println("Exiting Client..");
 		udpSocket.close();
-		try {
-			tcpServerSocket.close();
-			tcpMessenger.close();
-		} catch (IOException e) {
-			System.out.print("Could not close TCP");
-		}
-		executor.shutdown();
+		tcpManager.cleanUp();
+		System.out.println("Exit Complete");
 	}
 	
 	@SuppressWarnings("static-access")
