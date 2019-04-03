@@ -10,7 +10,7 @@ import java.net.UnknownHostException;
 // Blocking
 public class UDP_Messenger{
 	
-	private String recipientIP = "localhost";
+	private InetAddress recipientIP;
 	private int recipientPort = 7070;
 	
 	//Maximum message length
@@ -26,7 +26,7 @@ public class UDP_Messenger{
 		return serverSocket.getLocalPort();
 	}
 	
-	String getCurrentDHTLoc() {
+	String getCurrentDHT() {
 		return recipientIP + ":" + recipientPort;
 	}
 	
@@ -34,15 +34,25 @@ public class UDP_Messenger{
 		serverSocket.close();
 	}
 	
-	void updateDHTinfo(String ip, int port) {
-		recipientIP = ip;
+	boolean updateDHTinfo(String ip, int port) {
+		try {
+			recipientIP = InetAddress.getByName(ip);
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+			return false;
+		}
 		recipientPort = port;
+		return true;
 	}
 	
 	// Once message is sent, wait for a reply
-	public String sendMessage(String message) throws UnknownHostException {
+	public String sendMessage(String message) {
+		// Check if recipientIP is set yet
+		if (recipientIP == null) {
+			return null;
+		}
 		byte[] buffer = message.getBytes();
-		DatagramPacket packet = new DatagramPacket(buffer, buffer.length, InetAddress.getByName(recipientIP), recipientPort);
+		DatagramPacket packet = new DatagramPacket(buffer, buffer.length, recipientIP, recipientPort);
 		
 		// Try to send message to DHT server
 		try {

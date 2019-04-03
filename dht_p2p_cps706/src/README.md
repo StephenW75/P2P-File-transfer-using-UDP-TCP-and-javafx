@@ -1,1 +1,1 @@
-# CPS706
+# P2P File Sharing Client & Server

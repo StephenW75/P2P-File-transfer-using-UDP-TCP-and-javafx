@@ -15,6 +15,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 
@@ -25,42 +26,42 @@ public class Client extends Application{
 	private UDP_Messenger udpMessenger;
 	private TCP_Manager tcpManager;
 	
-	TCP_Worker w;
-	
 	TextArea logTextArea;
 	
 	@Override
 	public void start(Stage primaryStage) throws Exception {
 		
-		// UDP
+		// Start TCP & UDP Background processes
 		udpMessenger = new UDP_Messenger(clientPort);
-		// TCP
 		tcpManager = new TCP_Manager(clientPort);
 		
-		Stage window = primaryStage;
-		window.setTitle("P2P Client");
-		window.setScene(new Scene(newGUI(), 800, 600));
-		window.show();
+		// Appliation GUI start
+		primaryStage.setTitle("P2P Client");
+		primaryStage.setScene(new Scene(newGUI(), 800, 600));
+		primaryStage.show();
 		
+		// Some info for client-log
 		pushLog("TCP Server started on port: " + tcpManager.getLocalPort());
 		pushLog("UDP Server started on port: " + udpMessenger.getLocalPort());
+	}
+	
+	// sends raw message to DHT Server
+	String dhtSend(String s) {
+		return udpMessenger.sendMessage(s);
+	}
+	
+	// Formats message for query search and sends
+	String query(String key) {
+		String message = String.format("query\n%s", key);
+		return dhtSend(message);
+	}
+	
+	// sends message to another p2p-client
+	void p2pSend(String s) {
 		
 	}
 	
-	void dhtSend(String s) {
-		//String reply = udpMessenger.sendMessage(s);
-		//pushLog(reply);
-	}
-	
-	void search(String key) {
-		String message = String.format("query\n%s", key);
-		dhtSend(message);
-	}
-	
-	void p2pSend(String s) {
-		w.sendRawMessage(s + "\n");
-	}
-	
+	// writes to client-log
 	void pushLog(String log) {
 		logTextArea.appendText("\n" + log);
 	}
@@ -77,9 +78,9 @@ public class Client extends Application{
 		System.out.println("Exit Complete");
 	}
 	
+	// GUI
 	@SuppressWarnings("static-access")
 	private VBox newGUI(){
-		
 		
 		// Top Menu
 		Menu file = new Menu("File");
@@ -87,39 +88,11 @@ public class Client extends Application{
 		MenuItem fileOpen = new MenuItem("Upload");
 		MenuItem fileQuit = new MenuItem("Quit");
 		MenuItem changeDHTIP = new MenuItem("Change DHT IP");
-		//changeDHT window
-		Stage changeDHT = new Stage();
-		changeDHT.setTitle("Change IP and Port of DHT");
-		Text currentDHTLoc = new Text("Current DHT = ");
-		TextField DHTVBox_port = new TextField();
-		TextField DHTVBox_ip1 = new TextField();
-		TextField DHTVBox_ip2 = new TextField();
-		TextField DHTVBox_ip3 = new TextField();
-		TextField DHTVBox_ip4 = new TextField();
-		Button DHTVBox_Update = new Button("Update");
-		Button DHTVBox_Cancel = new Button("Cancel");
-		// Assemble changeDHT window
-		HBox DHTVBox_ip = new HBox(DHTVBox_ip1, new Text("."), DHTVBox_ip2, new Text("."), DHTVBox_ip3, new Text("."), DHTVBox_ip4);
-		HBox DHTVBox_updatecancel = new HBox(DHTVBox_Update, DHTVBox_Cancel);
-		VBox DHTVBox = new VBox(currentDHTLoc, DHTVBox_ip, DHTVBox_port, DHTVBox_updatecancel);
-		changeDHT.setScene(new Scene(DHTVBox, 300, 90));
 		// Menu Logic
 		fileQuit.setOnAction(e -> Platform.exit());
 		changeDHTIP.setOnAction(e -> {
-			currentDHTLoc.setText("Current DHT = " + udpMessenger.getCurrentDHTLoc());
-			changeDHT.show();
+			showDhtWindow();
 		});
-		// DHT menu logic
-		DHTVBox_Update.setOnAction(e -> {
-			udpMessenger.updateDHTinfo(String.format("%s.%s.%s.%s", DHTVBox_ip1.getText(), DHTVBox_ip2.getText(), DHTVBox_ip3.getText(), DHTVBox_ip4.getText()), Integer.valueOf(DHTVBox_port.getText()));
-			currentDHTLoc.setText("Current DHT = " + udpMessenger.getCurrentDHTLoc());
-			DHTVBox_port.setText("");
-			DHTVBox_ip1.setText("");
-			DHTVBox_ip2.setText("");
-			DHTVBox_ip3.setText("");
-			DHTVBox_ip4.setText("");
-		});
-		DHTVBox_Cancel.setOnAction(e -> {changeDHT.close();});
 		// Assemble Menu
 		MenuBar mainMenu = new MenuBar(file, edit);
 		file.getItems().addAll(fileOpen, fileQuit);
@@ -128,10 +101,10 @@ public class Client extends Application{
 		
 		// Main Area
 		ListView<File> fileListView = new ListView<File>();
-		TextArea searchTextArea = new TextArea();
-		Button queryButton = new Button("Search");
+		TextField searchTextArea = new TextField();
+		Button queryButton = new Button("Query");
 		Button tcpSendButton = new Button("TCP Send");
-		TextArea pathTextArea = new TextArea();
+		TextField pathTextArea = new TextField("/path/to/download/filename.jpg");
 		Button downloadButton = new Button("Download");
 		// Log Area
 		logTextArea = new TextArea("Client Started");
@@ -139,26 +112,58 @@ public class Client extends Application{
 		logTextArea.setEditable(false);
 		logTextArea.setMinHeight(80);
 		// Main Area Logic
-		queryButton.setOnAction(e -> search(searchTextArea.getText()));
+		queryButton.setOnAction(e -> query(searchTextArea.getText()));
 		tcpSendButton.setOnAction(e -> p2pSend(searchTextArea.getText()));
 		downloadButton.setOnAction(e -> {System.out.print("d");});
 		// Assemble Main Area
 		fileListView.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
-		pathTextArea.setMinHeight(25);
-		pathTextArea.setPrefHeight(25);
-		searchTextArea.setMinHeight(25);
-		searchTextArea.setPrefHeight(25);
-		HBox searchArea = new HBox(searchTextArea, queryButton, tcpSendButton);
-		searchArea.setHgrow(searchTextArea, Priority.ALWAYS);
+		HBox queryArea = new HBox(searchTextArea, queryButton, tcpSendButton);
 		HBox downloadArea = new HBox(pathTextArea, downloadButton);
-		downloadArea.setHgrow(pathTextArea, Priority.ALWAYS);
-		VBox centerLayout = new VBox(searchArea, fileListView, downloadArea, logTextArea);
-		fileListView.setPrefHeight(Integer.MAX_VALUE);
+		VBox centerLayout = new VBox(queryArea, fileListView, downloadArea, logTextArea);
+		//fileListView.setPrefHeight(Integer.MAX_VALUE);
 		centerLayout.setVgrow(fileListView, Priority.ALWAYS);
+		queryArea.setHgrow(searchTextArea, Priority.ALWAYS);
+		downloadArea.setHgrow(pathTextArea, Priority.ALWAYS);
+		pathTextArea.setDisable(true);
 		
 		// Assemble main layout
 		VBox mainLayout = new VBox(mainMenu, centerLayout);
 		return mainLayout;
+	}
+	
+	// Window to change DHT IP and Port
+	void showDhtWindow() {
+		Stage changeDHTwindow = new Stage();
+		changeDHTwindow.setTitle("Change IP:Port of DHT");
+		Text curDHTtext = new Text("Current DHT = " + udpMessenger.getCurrentDHT());
+		TextField portField = new TextField();
+		TextField ipField_1 = new TextField();
+		TextField ipField_2 = new TextField();
+		TextField ipField_3 = new TextField();
+		TextField ipField_4 = new TextField();
+		Button updateButton = new Button("Update");
+		Button cancelButton = new Button("Cancel");
+		// Logic
+		updateButton.setOnAction(ev -> {
+			udpMessenger.updateDHTinfo(String.format("%s.%s.%s.%s", ipField_1.getText(), ipField_2.getText(), ipField_3.getText(), ipField_4.getText()), Integer.valueOf(portField.getText()));
+			curDHTtext.setText("Current DHT = " + udpMessenger.getCurrentDHT());
+			// Clear textfields after updating
+			portField.setText("");
+			ipField_1.setText("");
+			ipField_2.setText("");
+			ipField_3.setText("");
+			ipField_4.setText("");
+		});
+		cancelButton.setOnAction(ev -> {
+			changeDHTwindow.close();
+		});
+		// Assemble changeDHT window
+		HBox ipField = new HBox(ipField_1, new Text("."), ipField_2, new Text("."), ipField_3, new Text("."), ipField_4);
+		HBox updateCancelButtons = new HBox(updateButton, cancelButton);
+		VBox layout = new VBox(curDHTtext, ipField, portField, updateCancelButtons);
+		changeDHTwindow.setScene(new Scene(layout, 300, 90));
+		changeDHTwindow.initModality(Modality.APPLICATION_MODAL);
+		changeDHTwindow.showAndWait();
 	}
 	
 	public static void main(String[] args){
