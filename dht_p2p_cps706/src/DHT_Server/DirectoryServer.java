@@ -1,25 +1,31 @@
-package DHT_Server;
+import java.io.*;
 import java.util.*;
+import java.net.*;
 
 
 public class DirectoryServer{
-	
-	private static final int port = 7080;
-	
+	public static int id; 
+	public String ip;
+	public static String nextIp;
 	public static void main(String[] args) throws Exception{
-		//DHTListener socket1 = new DHTListener(port);
-		PeerListener pListener = new PeerListener(port);
-		//Thread t1 = new Thread(socket1);
-		Thread pThread = new Thread(pListener);
-		//t1.start();
-		pThread.start();
+		for(int i = 0; i<args.length; i++) {
+			if(args[i].equals("-id")) {
+				id = Integer.parseInt(args[i+1]); 
+			}
+			else if(args[i].contentEquals("-nextip")) {
+				nextIp = args[i+1]; 
+			}
+		}
+		DHTListener socket1 = new DHTListener(id, nextIp);
+		PeerListener socket2 = new PeerListener();
+		Thread t1 = new Thread(socket1);
+		Thread t2 = new Thread(socket2);
+		t1.start();
+		t2.start(); 
 		
-		System.out.println("Press any key to close server");
-		System.in.read();
 		
-		//attempt to close sockets
-		//socket1.socket.close();
-		pListener.socket.close();
+		
+		
 	}// end of main
 	
 
