@@ -1,9 +1,5 @@
 package P2P_ClientServer;
 
-
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
@@ -14,23 +10,20 @@ import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
 import javafx.stage.Stage;
 
 
 public class Client extends Application{
 	
-	// DHT Server Information
-	private static final String dhtIP = "localhost";
-	private static final int dhtServerPort = 7080;
-	
 	private static final int clientPort = 7070;
 	
-	UDP_Messenger udpMessenger;
-	TCP_Manager tcpManager;
-	DatagramSocket udpSocket;
+	private UDP_Messenger udpMessenger;
+	private TCP_Manager tcpManager;
 	
 	TCP_Worker w;
 	
@@ -40,15 +33,9 @@ public class Client extends Application{
 	public void start(Stage primaryStage) throws Exception {
 		
 		// UDP
-		udpSocket = new DatagramSocket(clientPort);
-		InetAddress dhtIpAddress = InetAddress.getByName(dhtIP);
-		udpMessenger = new UDP_Messenger(udpSocket, dhtIpAddress, dhtServerPort);
-		
+		udpMessenger = new UDP_Messenger(clientPort);
 		// TCP
 		tcpManager = new TCP_Manager(clientPort);
-		// new connection (dhtip is localhost rn)
-		w = tcpManager.initHandShake(dhtIpAddress, clientPort);
-		
 		
 		Stage window = primaryStage;
 		window.setTitle("P2P Client");
@@ -56,13 +43,13 @@ public class Client extends Application{
 		window.show();
 		
 		pushLog("TCP Server started on port: " + tcpManager.getLocalPort());
-		pushLog("UDP Server started on port: " + udpSocket.getLocalPort());
+		pushLog("UDP Server started on port: " + udpMessenger.getLocalPort());
 		
 	}
 	
 	void dhtSend(String s) {
-		String reply = udpMessenger.sendMessage(s);
-		pushLog(reply);
+		//String reply = udpMessenger.sendMessage(s);
+		//pushLog(reply);
 	}
 	
 	void search(String key) {
@@ -85,22 +72,59 @@ public class Client extends Application{
 	@Override
 	public void stop() {
 		System.out.println("Exiting Client..");
-		udpSocket.close();
+		udpMessenger.cleanUp();
 		tcpManager.cleanUp();
 		System.out.println("Exit Complete");
 	}
 	
 	@SuppressWarnings("static-access")
 	private VBox newGUI(){
+		
+		
 		// Top Menu
 		Menu file = new Menu("File");
-		MenuItem fileOpen = new MenuItem("Open");
+		Menu edit = new Menu("Edit");
+		MenuItem fileOpen = new MenuItem("Upload");
 		MenuItem fileQuit = new MenuItem("Quit");
+		MenuItem changeDHTIP = new MenuItem("Change DHT IP");
+		//changeDHT window
+		Stage changeDHT = new Stage();
+		changeDHT.setTitle("Change IP and Port of DHT");
+		Text currentDHTLoc = new Text("Current DHT = ");
+		TextField DHTVBox_port = new TextField();
+		TextField DHTVBox_ip1 = new TextField();
+		TextField DHTVBox_ip2 = new TextField();
+		TextField DHTVBox_ip3 = new TextField();
+		TextField DHTVBox_ip4 = new TextField();
+		Button DHTVBox_Update = new Button("Update");
+		Button DHTVBox_Cancel = new Button("Cancel");
+		// Assemble changeDHT window
+		HBox DHTVBox_ip = new HBox(DHTVBox_ip1, new Text("."), DHTVBox_ip2, new Text("."), DHTVBox_ip3, new Text("."), DHTVBox_ip4);
+		HBox DHTVBox_updatecancel = new HBox(DHTVBox_Update, DHTVBox_Cancel);
+		VBox DHTVBox = new VBox(currentDHTLoc, DHTVBox_ip, DHTVBox_port, DHTVBox_updatecancel);
+		changeDHT.setScene(new Scene(DHTVBox, 300, 90));
 		// Menu Logic
 		fileQuit.setOnAction(e -> Platform.exit());
+		changeDHTIP.setOnAction(e -> {
+			currentDHTLoc.setText("Current DHT = " + udpMessenger.getCurrentDHTLoc());
+			changeDHT.show();
+		});
+		// DHT menu logic
+		DHTVBox_Update.setOnAction(e -> {
+			udpMessenger.updateDHTinfo(String.format("%s.%s.%s.%s", DHTVBox_ip1.getText(), DHTVBox_ip2.getText(), DHTVBox_ip3.getText(), DHTVBox_ip4.getText()), Integer.valueOf(DHTVBox_port.getText()));
+			currentDHTLoc.setText("Current DHT = " + udpMessenger.getCurrentDHTLoc());
+			DHTVBox_port.setText("");
+			DHTVBox_ip1.setText("");
+			DHTVBox_ip2.setText("");
+			DHTVBox_ip3.setText("");
+			DHTVBox_ip4.setText("");
+		});
+		DHTVBox_Cancel.setOnAction(e -> {changeDHT.close();});
 		// Assemble Menu
-		MenuBar mainMenu = new MenuBar(file);
+		MenuBar mainMenu = new MenuBar(file, edit);
 		file.getItems().addAll(fileOpen, fileQuit);
+		edit.getItems().addAll(changeDHTIP);
+		
 		
 		// Main Area
 		ListView<File> fileListView = new ListView<File>();

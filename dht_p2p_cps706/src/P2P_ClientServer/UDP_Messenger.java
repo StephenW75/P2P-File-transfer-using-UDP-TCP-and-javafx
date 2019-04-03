@@ -5,27 +5,44 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
 
 // Blocking
 public class UDP_Messenger{
+	
+	private String recipientIP = "localhost";
+	private int recipientPort = 7070;
 	
 	//Maximum message length
 	private final int MAX_BUFFER = 1024;
 	
 	private DatagramSocket serverSocket;
-	private InetAddress recipientIP;
-	private int recipientPort;
 	
-	UDP_Messenger(DatagramSocket serverSocket, InetAddress recipientIP, int recipientPort) throws IOException {
-		this.serverSocket = serverSocket;
-		this.recipientIP = recipientIP;
-		this.recipientPort = recipientPort;
+	UDP_Messenger(int serverPort) throws IOException {
+		serverSocket = new DatagramSocket(serverPort);
+	}
+	
+	int getLocalPort() {
+		return serverSocket.getLocalPort();
+	}
+	
+	String getCurrentDHTLoc() {
+		return recipientIP + ":" + recipientPort;
+	}
+	
+	void cleanUp(){
+		serverSocket.close();
+	}
+	
+	void updateDHTinfo(String ip, int port) {
+		recipientIP = ip;
+		recipientPort = port;
 	}
 	
 	// Once message is sent, wait for a reply
-	public String sendMessage(String message) {
+	public String sendMessage(String message) throws UnknownHostException {
 		byte[] buffer = message.getBytes();
-		DatagramPacket packet = new DatagramPacket(buffer, buffer.length, recipientIP, recipientPort);
+		DatagramPacket packet = new DatagramPacket(buffer, buffer.length, InetAddress.getByName(recipientIP), recipientPort);
 		
 		// Try to send message to DHT server
 		try {

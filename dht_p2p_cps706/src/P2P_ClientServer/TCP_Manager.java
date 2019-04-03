@@ -4,7 +4,6 @@ import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.ExecutorService;
@@ -29,7 +28,7 @@ public class TCP_Manager{
 	}
 	
 	// Try to start a TCP connection with rIP:rPORT, returns a handle to new TCP_Worker.
-	TCP_Worker initHandShake(InetAddress rIP, int rPORT) {
+	TCP_Worker initHandShake(String rIP, int rPORT) {
 		try {
 			Socket clientSocket = new Socket(rIP, rPORT);
 			System.out.println("TCPHandShake: Connecting to " + clientSocket.getInetAddress() + ":" + clientSocket.getPort());
