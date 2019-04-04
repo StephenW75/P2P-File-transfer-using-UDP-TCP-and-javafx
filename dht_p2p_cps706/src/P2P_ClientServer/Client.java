@@ -1,5 +1,7 @@
 package P2P_ClientServer;
 
+import java.io.File;
+
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
@@ -15,6 +17,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
+import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
@@ -37,7 +40,7 @@ public class Client extends Application{
 		
 		// Appliation GUI start
 		primaryStage.setTitle("P2P Client");
-		primaryStage.setScene(new Scene(newGUI(), 800, 600));
+		primaryStage.setScene(new Scene(newGUI(primaryStage), 800, 600));
 		primaryStage.show();
 		
 		// Some info for client-log
@@ -45,15 +48,20 @@ public class Client extends Application{
 		pushLog("UDP Server started on port: " + udpMessenger.getLocalPort());
 	}
 	
-	// sends raw message to DHT Server
-	String dhtSend(String s) {
-		return udpMessenger.sendMessage(s);
+	// Formats message to query DHT
+	String query(String key) {
+		String message = String.format("query\n%s\r\n", key);
+		return udpMessenger.sendMessage(message);
 	}
 	
-	// Formats message for query search and sends
-	String query(String key) {
-		String message = String.format("query\n%s", key);
-		return dhtSend(message);
+	// Formats message to imform and update DHT
+	String informUpdate(File file) {
+		String fileName = file.getName();
+		String path = file.getPath().substring(0, file.getPath().indexOf(fileName));
+		// switch to UNIX style paths
+		path = path.replace("\\","/");
+		String message = String.format("inform&update\nFileName=%s\nPath=%s\r\n", fileName, path);
+		return udpMessenger.sendMessage(message);
 	}
 	
 	// sends message to another p2p-client
@@ -65,6 +73,9 @@ public class Client extends Application{
 	void pushLog(String log) {
 		logTextArea.appendText("\n" + log);
 	}
+	
+	
+	
 	
 	
 	/*
@@ -80,7 +91,9 @@ public class Client extends Application{
 	
 	// GUI
 	@SuppressWarnings("static-access")
-	private VBox newGUI(){
+	private VBox newGUI(Stage pStage){
+		
+		FileChooser fChooser = new FileChooser();
 		
 		// Top Menu
 		Menu file = new Menu("File");
@@ -89,6 +102,10 @@ public class Client extends Application{
 		MenuItem fileQuit = new MenuItem("Quit");
 		MenuItem changeDHTIP = new MenuItem("Change DHT IP");
 		// Menu Logic
+		fileOpen.setOnAction(e -> {
+			File f = fChooser.showOpenDialog(pStage);
+			if (f != null) informUpdate(f);
+		});
 		fileQuit.setOnAction(e -> Platform.exit());
 		changeDHTIP.setOnAction(e -> {
 			showDhtWindow();
@@ -100,7 +117,7 @@ public class Client extends Application{
 		
 		
 		// Main Area
-		ListView<File> fileListView = new ListView<File>();
+		ListView<File> fileListView = new ListView<File>(); //TODO: Removed "File" class cause using java.io.File
 		TextField searchTextArea = new TextField();
 		Button queryButton = new Button("Query");
 		Button tcpSendButton = new Button("TCP Send");
