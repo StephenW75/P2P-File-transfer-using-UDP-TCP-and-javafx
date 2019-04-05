@@ -129,7 +129,7 @@ public class Client extends Application{
 		logTextArea.setEditable(false);
 		logTextArea.setMinHeight(80);
 		// Main Area Logic
-		queryButton.setOnAction(e -> query(searchTextArea.getText()));
+		queryButton.setOnAction(e -> pushLog(query(searchTextArea.getText())));
 		tcpSendButton.setOnAction(e -> p2pSend(searchTextArea.getText()));
 		downloadButton.setOnAction(e -> {System.out.print("d");});
 		// Assemble Main Area

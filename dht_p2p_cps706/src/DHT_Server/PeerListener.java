@@ -1,146 +1,114 @@
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
+package DHT_Server;
+
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.net.Socket;
 import java.net.SocketException;
-import java.rmi.UnknownHostException;
 import java.util.Hashtable;
 
+// Listens for a connection on UDP
 public class PeerListener implements Runnable {
-	private Thread t; 
-	private String threadName;
-	private int id;
+	
+	private DatagramSocket socket;
+	private final int UDPInPort = 20041;
+	private final int MAX_BUFFER = 1024;
+	private Hashtable<String, String> database;
+	private DHTListener dhtListenerRef;
+
+	
+	// Constructor
+	PeerListener(Hashtable<String, String> referenceToDHT, DHTListener referenceToListener) {
+		database = referenceToDHT;
+		dhtListenerRef = referenceToListener;
+	}
+	
+	/*
+	 * ===========================================
+	 *          COMMAND PROCESSING HERE
+	 * ===========================================
+	 */
+	
+	// Query
+	byte[] query(String itemName) {
+		// Get IP address of peer with the component from database
+		String targetIp = database.get(itemName); 
+		// Response to client
+		byte[] response = (String.format("queryresponse\n%s\r\n", targetIp)).getBytes(); 
+		return response;
+		
+	}
+	
+	
 	
 	public void run() {
-		String itemName; 
-		String targetIp;
-		Hashtable<String, String> database = new Hashtable<String, String>();
-		DatagramSocket socket = null;
-		String nextDHTServerIp = "";
-		Socket nextDHTSocket = null;
-		DataOutputStream outToNextDHTServer = null;
-		BufferedReader inFromNextDHTServer = null; 
-		String dhtAddresses = ""; 
-		String message = "";
-		String command = "";
-		String messageData = "";
+		System.out.println("PeerListener Started.");
 		
+		String message;
+		String command;
+		String messageData;
+		
+		// Now receiving packets from UDPInPort
 		try {
-			socket = new DatagramSocket(7024); 
+			socket = new DatagramSocket(UDPInPort); 
 		}
+		// Exit Peerlistener on exception
 		catch(SocketException e) {
 			e.printStackTrace();
-		}
-		finally {
-			socket.close(); 
+			return;
 		}
 		
-		byte[] receiveData = new byte[1024];
-		byte[] sendData = new byte[1024];
-
-		
+		// Keep handling incoming packets
 		while(true) {
 			
+			byte[] receiveData = new byte[MAX_BUFFER];
 			DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
 			
+			// Get packet
 			try {
+				System.out.println("Waiting for incoming packet...");
 				socket.receive(receivePacket);
 			}
 			catch(IOException e) {
 				e.printStackTrace();
 			}
 			
-			//Read data and interpret retrieved from socket
+			// Read data and interpret retrieved from socket
 			message = new String(receivePacket.getData());
 			command = message.substring(0,message.indexOf("\n")); 
-			messageData = message.substring(message.indexOf("\n"), message.length()); 
+			messageData = message.substring(message.indexOf("\n") + 1, message.indexOf("\r\n")); 
 			
-			//Receive client info
-			InetAddress IPAddress = receivePacket.getAddress();
-			int port = receivePacket.getPort();
+			// Receive client info
+			InetAddress clientIP = receivePacket.getAddress();
+			int clientPort = receivePacket.getPort();
 			
-			//Determine action based on data from retrieved from socket
+			System.out.println("=== NEW MESSAGE ===");
+			System.out.println(String.format("Command: %s\nMessage: %s\nFrom: %s:%s", command, messageData, clientIP, clientPort));
+			System.out.println("=== END MESSAGE ===");
+			
+			// Query command
 			if(command.toLowerCase().equals("query")) {
-				//Message header is query request, so rest of message is the name of component requested
-				itemName = messageData; 
-				
-				//Get IP address of peer with the component from database
-				targetIp = database.get(itemName); 
-			
-				//Response to client
-				sendData = ("queryresponse\n"+targetIp).getBytes(); 
-				DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
+				byte[] response = query(messageData);
 				try {
-					socket.send(sendPacket);
-				}
-				catch(IOException e) {
-					e.printStackTrace();
+					socket.send(new DatagramPacket(response, response.length, clientIP, clientPort));
+				} catch (IOException e) {
+					System.out.println("p2pQuery: " + e.getMessage());
 				}
 			}
 			
+			
+			// Init command
 			else if(command.toLowerCase().equals("init")) {
-				do {
-					try {
 				
-				
-					dhtAddresses = InetAddress.getLocalHost().getHostAddress()+"\n";
-					nextDHTSocket = new Socket(nextDHTServerIp, 6789);
-					outToNextDHTServer =new DataOutputStream(nextDHTSocket.getOutputStream());
-					inFromNextDHTServer = new BufferedReader(new InputStreamReader(nextDHTSocket.getInputStream()));
-					
-						
-				}
-				catch (java.net.UnknownHostException e) {
-				      System.out.println("Unknown Host");
-				}
-				catch(IOException e) {
-					continue;
-				}
-				
-				}while(false); //loop until a connection is initiated 
-				
-				
-				try {
-					outToNextDHTServer.writeBytes(id+"\nDHTinit\n"+dhtAddresses);//send init request to next server
-				}
-				catch(IOException e) {
-					e.printStackTrace();
-				}
-			
-				
-				//Need to handle receiving of complete list of IPs
-				
-				
-			
 			}
-			
-			else if(command.toLowerCase().equals("inform_update")) {
+			// Inform and Update command
+			else if(command.toLowerCase().equals("inform&update")) {
 			
 			
 			}
 			else {
 			
 			}
-			
 		}//end of while true
-	
 	}// end of run
-	public void start() {
-		System.out.println("Starting " +  threadName );
-	      if (t == null) {
-	         t = new Thread (this, threadName);
-	         t.start();
-	      }	
-	}
-	
-	
-	
-	
-	
-	
-	
 }

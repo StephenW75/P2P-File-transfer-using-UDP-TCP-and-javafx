@@ -10,8 +10,8 @@ import java.net.UnknownHostException;
 // Blocking
 public class UDP_Messenger{
 	
-	private InetAddress recipientIP;
-	private int recipientPort = 7070;
+	private InetAddress recipientIP = InetAddress.getByName("localhost");
+	private int recipientPort = 20041;
 	
 	//Maximum message length
 	private final int MAX_BUFFER = 1024;
@@ -34,6 +34,7 @@ public class UDP_Messenger{
 		serverSocket.close();
 	}
 	
+	// Update UDP info
 	boolean updateDHTinfo(String ip, int port) {
 		try {
 			recipientIP = InetAddress.getByName(ip);
@@ -41,7 +42,11 @@ public class UDP_Messenger{
 			e.printStackTrace();
 			return false;
 		}
-		recipientPort = port;
+		if (port == 0) {
+			recipientPort = 20041;
+		} else {
+			recipientPort = port;
+		}
 		return true;
 	}
 	
@@ -72,8 +77,10 @@ public class UDP_Messenger{
 			serverSocket.receive(packet);
 		} catch (SocketTimeoutException e) { 
 			System.out.println("Could not receive packet, timed out after 5s");
+			return null;
 		} catch (Exception e) {
 			System.out.println("UDP ServerSocket: " + e.getMessage());
+			return null;
 		}
 		String reply = new String(packet.getData());
 		String shortReply = reply.substring(0, packet.getLength());
