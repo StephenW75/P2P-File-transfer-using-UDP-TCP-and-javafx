@@ -8,48 +8,43 @@ import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 
 // Blocking
-public class UDP_Messenger{
-	
+public class UDP_Messenger {
+
 	private InetAddress recipientIP = InetAddress.getByName("localhost");
 	private int recipientPort = 20041;
-	
-	//Maximum message length
+
+	// Maximum message length
 	private final int MAX_BUFFER = 1024;
-	
+
 	private DatagramSocket serverSocket;
-	
+
 	UDP_Messenger(int serverPort) throws IOException {
 		serverSocket = new DatagramSocket(serverPort);
 	}
-	
+
 	int getLocalPort() {
 		return serverSocket.getLocalPort();
 	}
-	
+
 	String getCurrentDHT() {
 		return recipientIP + ":" + recipientPort;
 	}
-	
-	void cleanUp(){
+
+	void cleanUp() {
 		serverSocket.close();
 	}
-	
+
 	// Update UDP info
-	boolean updateDHTinfo(String ip, int port) {
+	boolean changeIp(String ip) {
 		try {
 			recipientIP = InetAddress.getByName(ip);
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 			return false;
 		}
-		if (port == 0) {
-			recipientPort = 20041;
-		} else {
-			recipientPort = port;
-		}
 		return true;
 	}
-	
+
 	// Once message is sent, wait for a reply
 	public String sendMessage(String message) {
 		// Check if recipientIP is set yet
@@ -58,24 +53,23 @@ public class UDP_Messenger{
 		}
 		byte[] buffer = message.getBytes();
 		DatagramPacket packet = new DatagramPacket(buffer, buffer.length, recipientIP, recipientPort);
-		
+
 		// Try to send message to DHT server
 		try {
 			serverSocket.send(packet);
 		} catch (IOException e) {
 			System.out.println("Could not send packet");
 		}
-		
-		
+
 		// Set max receive buffer size to MAX_BUFFER
 		buffer = new byte[MAX_BUFFER];
 		packet = new DatagramPacket(buffer, buffer.length);
-		
+
 		// Wait up to 5 seconds to get response for DHT server
 		try {
 			serverSocket.setSoTimeout(5000);
 			serverSocket.receive(packet);
-		} catch (SocketTimeoutException e) { 
+		} catch (SocketTimeoutException e) {
 			System.out.println("Could not receive packet, timed out after 5s");
 			return null;
 		} catch (Exception e) {

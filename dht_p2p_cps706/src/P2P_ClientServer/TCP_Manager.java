@@ -13,8 +13,8 @@ import java.util.concurrent.Executors;
  * Manages multiple TCP connections using multi-threading
  */
 
-public class TCP_Manager{
-	
+public class TCP_Manager {
+
 	private ServerSocket serverSocket;
 	private ExecutorService tPool;
 
@@ -26,12 +26,14 @@ public class TCP_Manager{
 		// Start greeter (we only need 1)
 		tPool.submit(new TCP_Greeter(serverSocket));
 	}
-	
-	// Try to start a TCP connection with rIP:rPORT, returns a handle to new TCP_Worker.
+
+	// Try to start a TCP connection with rIP:rPORT, returns a handle to new
+	// TCP_Worker.
 	TCP_Worker initHandShake(String rIP, int rPORT) {
 		try {
 			Socket clientSocket = new Socket(rIP, rPORT);
-			System.out.println("TCPHandShake: Connecting to " + clientSocket.getInetAddress() + ":" + clientSocket.getPort());
+			System.out.println(
+					"TCPHandShake: Connecting to " + clientSocket.getInetAddress() + ":" + clientSocket.getPort());
 			DataOutputStream outStream = new DataOutputStream(clientSocket.getOutputStream());
 			TCP_Worker worker = new TCP_Worker(clientSocket, outStream);
 			tPool.submit(worker);
@@ -45,7 +47,7 @@ public class TCP_Manager{
 	int getLocalPort() {
 		return serverSocket.getLocalPort();
 	}
-	
+
 	// Cleans up for a safe shutdown
 	void cleanUp() {
 		try {
@@ -57,11 +59,9 @@ public class TCP_Manager{
 		tPool.shutdown();
 		System.out.println("Successfully cleaned up TCP");
 	}
-	
-	
+
 	/*
-	 * Non-blocking
-	 * Handles incoming TCP hand-shakes
+	 * Non-blocking Handles incoming TCP hand-shakes
 	 */
 	class TCP_Greeter implements Runnable {
 
@@ -69,12 +69,12 @@ public class TCP_Manager{
 		private Socket clientSocket;
 		private DataOutputStream outStream;
 		private volatile boolean STOP_SIGNAL;
-		
+
 		TCP_Greeter(ServerSocket sSocket) {
 			STOP_SIGNAL = false;
 			serverSocket = sSocket;
 		}
-		
+
 		boolean isStopped() {
 			return STOP_SIGNAL;
 		}
@@ -105,83 +105,77 @@ public class TCP_Manager{
  * Thread which handles TCP messages / commands from a(one) TCP connection
  */
 class TCP_Worker implements Runnable {
-	
+
 	// Initially set kill signals to false
 	private volatile static boolean STOP_ALL_SIGNAL = false;
 	private volatile boolean STOP_SIGNAL = false;
-	
-	//private ExecutorService txPool;
+
+	// private ExecutorService txPool;
 	private Socket clientSocket;
 	private String threadID = Long.toString(Thread.currentThread().getId());
 	private BufferedReader in;
 	private DataOutputStream out;
-	
+
 	// Constructor
-	TCP_Worker(Socket cSocket, DataOutputStream outStream){
+	TCP_Worker(Socket cSocket, DataOutputStream outStream) {
 		out = outStream;
 		clientSocket = cSocket;
-		//txPool = Executors.newSingleThreadExecutor();
-		
+		// txPool = Executors.newSingleThreadExecutor();
+
 		try {
-			in = new BufferedReader (new InputStreamReader(clientSocket.getInputStream()));
+			in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 		} catch (IOException e) {
 			System.out.println("T" + threadID + " Could not read from socket: " + e.getMessage());
 		}
 	}
-	
+
 	@Override
 	public void run() {
-		System.out.println(String.format("T%s: Starting TCP with: '%s:%s'", threadID, clientSocket.getInetAddress(), clientSocket.getPort()));
+		System.out.println(String.format("T%s: Starting TCP with: '%s:%s'", threadID, clientSocket.getInetAddress(),
+				clientSocket.getPort()));
 		try {
 			// If either signals are on, break loop
 			while (!isStopped()) {
 				// Thread.sleep() allows pc to chillout, was hogging too many resources
 				Thread.sleep(50);
-				if(in.ready()) {
-					
-					
-					
-					
-					
+				if (in.ready()) {
+
 					// TODO: Process Data here
 					String message = in.readLine();
-					System.out.println("T"+threadID + " Receiving: " + message);
-					
-					
-					
-					
-					
-					
+					System.out.println("T" + threadID + " Receiving: " + message);
+
 				}
 			}
-			System.out.println("T"+threadID + ": signaled to stop");
+			System.out.println("T" + threadID + ": signaled to stop");
 			kill();
 		} catch (IOException e) {
 			System.out.println(e.getMessage());
 		} catch (InterruptedException e) {
-			System.out.println("T"+threadID + ": sleep() interrupted");
+			System.out.println("T" + threadID + ": sleep() interrupted");
 		}
 	}
-	
+
 	void sendRawMessage(String message) {
-		//txPool.submit(new TCP_WorkerTX());\
-		System.out.println("T"+threadID + " Sending: " + message);
+		// txPool.submit(new TCP_WorkerTX());\
+		System.out.println("T" + threadID + " Sending: " + message);
 		try {
 			out.writeBytes(message);
 		} catch (IOException e) {
-			System.out.println("T"+threadID + ": " + e.getMessage());
+			System.out.println("T" + threadID + ": " + e.getMessage());
 		}
 	}
-	
+
 	// Kills all TCP_Worker Threads
-	static void signalKillAll () {
+	static void signalKillAll() {
 		STOP_ALL_SIGNAL = true;
 	}
+
 	// Kill just this instance
 	void signalKill() {
 		STOP_SIGNAL = true;
 	}
-	void kill(){
+
+	void kill() {
 		try {
 			clientSocket.close();
 		} catch (IOException e) {
@@ -190,7 +184,8 @@ class TCP_Worker implements Runnable {
 		}
 		System.out.println("T" + threadID + " client socket closed");
 	}
+
 	boolean isStopped() {
 		return STOP_ALL_SIGNAL || STOP_SIGNAL;
-	}	
-}	
+	}
+}

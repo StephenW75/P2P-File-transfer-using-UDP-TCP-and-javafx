@@ -14,19 +14,18 @@ public class PeerListener implements Runnable {
 	private final int UDPInPort = 20041;
 	private final int MAX_BUFFER = 1024;
 	private Hashtable<String, String> database;
-	private DHTListener dhtListenerRef;
+	private DHT_Manager dhtManager;
 
-	
 	// Constructor
-	PeerListener(Hashtable<String, String> referenceToDHT, DHTListener referenceToListener) {
+	PeerListener(Hashtable<String, String> referenceToDHT, DHT_Manager referenceToDHT_Manager) {
 		database = referenceToDHT;
-		dhtListenerRef = referenceToListener;
+		dhtManager = referenceToDHT_Manager;
 	}
 	
 	/*
-	 * ===========================================
-	 *          COMMAND PROCESSING HERE
-	 * ===========================================
+	 * =====================================================================
+	 *                        COMMAND PROCESSING HERE
+	 * =====================================================================
 	 */
 	
 	// Query
@@ -39,6 +38,13 @@ public class PeerListener implements Runnable {
 		
 	}
 	
+	// Inform&Update //message = String.format("inform&update\nFileName=%s\r\n", fileName)
+	void informUpdate(String messageData, InetAddress ip) {
+		// TODO: 
+		String fileName = messageData.substring(messageData.indexOf("FileName=") + "FileName=".length(), messageData.length());
+		String value = ip.toString();
+		database.put(fileName, value);
+	}
 	
 	
 	public void run() {
@@ -83,8 +89,7 @@ public class PeerListener implements Runnable {
 			int clientPort = receivePacket.getPort();
 			
 			System.out.println("=== NEW MESSAGE ===");
-			System.out.println(String.format("Command: %s\nMessage: %s\nFrom: %s:%s", command, messageData, clientIP, clientPort));
-			System.out.println("=== END MESSAGE ===");
+			System.out.println(String.format("Command: %s\nMessage: %s\nFrom: %s:%s\n", command, messageData, clientIP, clientPort));
 			
 			// Query command
 			if(command.toLowerCase().equals("query")) {
@@ -95,20 +100,22 @@ public class PeerListener implements Runnable {
 					System.out.println("p2pQuery: " + e.getMessage());
 				}
 			}
-			
-			
-			// Init command
+			// Init command  //message = String.format("query\n%s\r\n", key);
 			else if(command.toLowerCase().equals("init")) {
-				
+				//
 			}
 			// Inform and Update command
 			else if(command.toLowerCase().equals("inform&update")) {
-			
-			
+				informUpdate(messageData, receivePacket.getAddress());
+				try {
+					byte[] response = String.format("db<-[%s:%s]\r\n", messageData, receivePacket.getAddress()).getBytes();
+					socket.send(new DatagramPacket(response, response.length, clientIP, clientPort));
+				} catch (IOException e) {
+					System.out.println("p2pInformUpdate: " + e.getMessage());
+				}
 			}
-			else {
 			
-			}
+			
 		}//end of while true
 	}// end of run
 }

@@ -7,14 +7,13 @@ import java.util.Hashtable;
 
 public class DirectoryServer{
 	
-	public static int id; 
-	public String ip;
-	public static String nextIp;
+	private static int id;
+	private static String nextIp;
+	private static int size;
 	
 	// Main begin
 	public static void main(String[] args){
 		
-		/*
 		// Launch Arguments
 		for(int i = 0; i<args.length; i++) {
 			if(args[i].equals("-id")) {
@@ -23,36 +22,29 @@ public class DirectoryServer{
 			else if(args[i].contentEquals("-nextip")) {
 				nextIp = args[i+1]; 
 			}
+			else if(args[i].contentEquals("-size")) {
+				size = Integer.valueOf(args[i+1]); 
+			}
 		}
-		*/
 		
-		// Start threads
-		DHTListener dhtListener = new DHTListener(0, null);
-		PeerListener pListener = new PeerListener(initDHTable(), dhtListener);
-		
-		Thread dhtListenerThread = new Thread(dhtListener);
+		Hashtable<String, String> db =  initDHTable();
+		//DHT_Manager dhtManager = new DHT_Manager(db, id, nextIp, size);
+		DHT_Manager dhtManager = new DHT_Manager(db, 0, null, 1);
+		PeerListener pListener = new PeerListener(db, dhtManager);
+
 		Thread pListenerThread = new Thread(pListener);
-		
-		dhtListenerThread.start();
 		pListenerThread.start();
 		
-		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-		
-		while (true) {
-			System.out.println("Enter \"quit\" to quit, or enter a command.");
-			String message;
-			try {
-				message = br.readLine();
-				if (message.contains("quit")) break;
-			} catch (IOException e) {
-				e.printStackTrace();
-			}	
-		}
-		
-		// Safely close all Connections
-		dhtListener.stop();
 
-		
+
+		// Keep Alive
+		try {
+			System.out.println("Enter to quit");
+			new BufferedReader(new InputStreamReader(System.in)).readLine();
+		} catch (IOException e) {
+		}
+
+
 	}// Main end
 	
 
