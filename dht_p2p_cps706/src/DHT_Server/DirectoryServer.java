@@ -1,8 +1,5 @@
 package DHT_Server;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.Hashtable;
 
 public class DirectoryServer{
@@ -27,23 +24,15 @@ public class DirectoryServer{
 			}
 		}
 		
+		System.out.println(String.format("Launching with ID:%d, nextIP:%s, RingSize:%d", id, nextIp, size));
+		
 		Hashtable<String, String> db =  initDHTable();
 		//DHT_Manager dhtManager = new DHT_Manager(db, id, nextIp, size);
-		DHT_Manager dhtManager = new DHT_Manager(db, 0, null, 1);
+		DHT_Manager dhtManager = new DHT_Manager(db, id, nextIp, size);
 		PeerListener pListener = new PeerListener(db, dhtManager);
 
 		Thread pListenerThread = new Thread(pListener);
 		pListenerThread.start();
-		
-
-
-		// Keep Alive
-		try {
-			System.out.println("Enter to quit");
-			new BufferedReader(new InputStreamReader(System.in)).readLine();
-		} catch (IOException e) {
-		}
-
 
 	}// Main end
 	

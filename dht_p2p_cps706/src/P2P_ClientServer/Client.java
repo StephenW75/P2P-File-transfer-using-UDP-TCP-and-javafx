@@ -93,7 +93,7 @@ public class Client extends Application {
 		fileOpen.setOnAction(e -> {
 			File f = fChooser.showOpenDialog(pStage);
 			if (f != null)
-				informUpdate(f);
+				pushLog(informUpdate(f));
 		});
 		fileQuit.setOnAction(e -> Platform.exit());
 		// Assemble Menu
