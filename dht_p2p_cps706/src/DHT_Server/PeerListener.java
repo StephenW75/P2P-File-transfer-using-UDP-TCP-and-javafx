@@ -91,7 +91,6 @@ public class PeerListener implements Runnable {
 
 			// Get packet
 			try {
-				System.out.println("Waiting for incoming packet...");
 				socket.receive(receivePacket);
 			} catch (IOException e) {
 				e.printStackTrace();

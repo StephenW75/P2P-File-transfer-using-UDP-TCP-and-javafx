@@ -25,6 +25,7 @@ public class DHT_Manager {
 	private ExecutorService ex = Executors.newCachedThreadPool();
 
 	private int ID;
+	private int ringSize;
 	Hashtable<String, String> database;
 
 	// id: ID of this server, nextIP: IP of next server, dhtRingSize: number of dht
@@ -32,12 +33,14 @@ public class DHT_Manager {
 	public DHT_Manager(Hashtable<String, String> referenceToDHT, int id, String nextIp, int dhtSize) {
 		database = referenceToDHT;
 		ID = id;
-
+		ringSize = dhtSize;
 		nextDhtCon = new NextDhtConnection(nextIp);
 		prevDhtCon = new PrevDhtConnection(dhtSize);
 		ex.submit(nextDhtCon);
 		ex.submit(prevDhtCon);
 	}
+	
+	
 
 	// Safely stops thread
 	public void stop() {
@@ -99,8 +102,8 @@ public class DHT_Manager {
 							// closed
 							String command = inFromNextDHT.readLine();
 
-							if (command.toLowerCase().equals("hello")) {
-								outToNextDHT.writeBytes("world");
+							if (command.toLowerCase().equals("ping")) {
+								outToNextDHT.writeBytes("pong");
 							}
 						} catch (IOException e) {
 							System.out.println("NextListener: " + e);
@@ -113,16 +116,30 @@ public class DHT_Manager {
 		}// End of run()
 		
 		private void connect() {
-			// Connects to: remoteAddress, remotePort <-> localAddress, localPort
-			try {
-				nextDhtSocket.setSoTimeout(2000);
-				nextDhtSocket = new Socket(nextIP, TcpInPort, InetAddress.getByName("localhost"), TcpOutPort);
-				outToNextDHT = new DataOutputStream(nextDhtSocket.getOutputStream());
-				inFromNextDHT = new BufferedReader(new InputStreamReader(nextDhtSocket.getInputStream()));
-			} catch (SocketException e) {
-				System.out.println(e.getMessage());
-			} catch (IOException e) {
-				System.out.println(e.getMessage());
+			System.out.println("Attempting to connect to " + nextIP + ":" + TcpInPort);
+			boolean connected = false;
+			
+			
+			while (!isStopped() && !connected) {
+				
+				try {
+					Thread.sleep(2500);
+				} catch (InterruptedException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+				
+				try {
+					// Connects to: remoteAddress, remotePort <-> localAddress, localPort
+					nextDhtSocket = new Socket(nextIP, TcpInPort);
+					connected = true;
+					outToNextDHT = new DataOutputStream(nextDhtSocket.getOutputStream());
+					inFromNextDHT = new BufferedReader(new InputStreamReader(nextDhtSocket.getInputStream()));
+				} catch (SocketException e) {
+					System.out.println(e.getMessage() + ". Retrying " + nextIP + ":" + TcpInPort);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 			}
 		}
 
@@ -132,8 +149,10 @@ public class DHT_Manager {
 				outToNextDHT.writeBytes(String.format("%d\n", id));
 
 				if (inFromNextDHT.readLine().contains("CONNECTION OK")) {
+					System.out.println(nextDhtSocket + " Authenticated Me");
 					return true;
 				} else {
+					System.out.println(nextDhtSocket + " Rejected Me");
 					return false;
 				}
 			} catch (IOException e) {
@@ -232,8 +251,8 @@ public class DHT_Manager {
 			// Wait for incomming connection from prevDHTServer
 			try {
 				serverSocket = new ServerSocket(TcpInPort);
+				System.out.println("Waiting for a prevDhtConnection on socket: " + serverSocket);
 				prevDHTSocket = serverSocket.accept();
-				System.out.println("Connected to " + prevDHTSocket);
 				inFromPrevDHT = new BufferedReader(new InputStreamReader(prevDHTSocket.getInputStream()));
 				outToPrevDHT = new DataOutputStream(prevDHTSocket.getOutputStream());
 			} catch (IOException e) {
@@ -254,8 +273,11 @@ public class DHT_Manager {
 				// with maxInt == ServerRingSize
 
 				if (previDhtID != ((ID - 1) % ringSize + ringSize) % ringSize) {
+					outToPrevDHT.writeBytes("CONNECTION REJECT\r\n");
+					serverSocket.close();
 					return false;
 				} else {
+					outToPrevDHT.writeBytes("CONNECTION OK\r\n");
 					return true;
 				}
 
