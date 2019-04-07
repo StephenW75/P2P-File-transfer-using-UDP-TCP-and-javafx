@@ -43,6 +43,9 @@ public class Client extends Application {
 		// Some info for client-log
 		pushLog("TCP Server started on port: " + tcpManager.getLocalPort());
 		pushLog("UDP Server started on port: " + udpMessenger.getLocalPort());
+		
+		
+		pushLog(DHTinit());
 	}
 
 	// Formats message to query DHT
@@ -57,6 +60,13 @@ public class Client extends Application {
 		String message = String.format("inform&update\nFileName=%s\r\n", fileName);
 		return udpMessenger.sendMessage(message);
 	}
+	
+	// Init
+	String DHTinit() {
+		String message = "init\nkthxbye\r\n";
+		return udpMessenger.sendMessage(message);
+	}
+	
 
 	// sends message to another p2p-client
 	void p2pSend(String s) {

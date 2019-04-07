@@ -4,7 +4,7 @@ import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.InetAddress;
+import java.net.Inet4Address;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
@@ -15,7 +15,6 @@ import java.util.concurrent.Executors;
 // Handles DHT server ring
 public class DHT_Manager {
 
-	private final int TcpOutPort = 20040;
 	private final int TcpInPort = 20041;
 
 	private boolean STOP_SIGNAL = false;
@@ -41,6 +40,24 @@ public class DHT_Manager {
 	}
 	
 	
+	// Ugly but it works...
+	String[] getAllIPs() {
+		// Starting ID keeps track so that servers won't keep asking for nextIPs
+		int startingID = ID;
+		String[] allIPs = new String[ringSize];
+
+		String restOfIps = nextDhtCon.sendCommand("GET ALL IPS", Integer.toString(startingID));
+		
+		// restOfIps Format:  "ip2|id2,ip3|id3,ip4|id4, ... ip1|id1END\r\n"
+		String[] idip = restOfIps.split(",");
+		for (int i = 0; i < ringSize; ++i) {
+			String ip = idip[i].substring(0, idip[i].indexOf('|'));
+			String id = idip[i].substring(idip[i].indexOf('|') + 1, idip[i].length());
+			allIPs[Integer.parseInt(id)] = ip;
+		}
+
+		return allIPs;
+	}
 
 	// Safely stops thread
 	public void stop() {
@@ -51,6 +68,13 @@ public class DHT_Manager {
 	private boolean isStopped() {
 		return STOP_SIGNAL;
 	}
+
+	/*
+	 * =============================================================================
+	 * ==== CLASSES/RUNNABLES For NextDhtConnection and PrevDhtConnection are below
+	 * =============================================================================
+	 * ====
+	 */
 
 	// Thread that deals with NextDhtServer
 	private class NextDhtConnection implements Runnable {
@@ -65,13 +89,16 @@ public class DHT_Manager {
 			nextIP = nextip;
 		}
 
-		String sendMessage(String s) {
+		String sendCommand(String command, String instructions) {
 			if (nextDhtSocket == null) {
 				return null;
 			} else {
 				try {
-					outToNextDHT.writeBytes(String.format("%s\r\n", s));
-					return inFromNextDHT.readLine();
+					String message = String.format("%s\n%s\r\n", command, instructions);
+					System.out.println("Sending to next: " + message);
+					outToNextDHT.writeBytes(message);
+					String reply = inFromNextDHT.readLine();
+					return reply;
 				} catch (IOException e) {
 					e.printStackTrace();
 					return null;
@@ -90,9 +117,8 @@ public class DHT_Manager {
 
 					/*
 					 * (probably will never need to get commands from nextDHT)
-					 * =======================================
-					 * RECEIVING COMMANDS FROM NEXT DHT SERVER
-					 * =======================================
+					 * ======================================= RECEIVING COMMANDS FROM NEXT DHT
+					 * SERVER =======================================
 					 */
 
 					while (!isStopped()) {
@@ -100,35 +126,37 @@ public class DHT_Manager {
 							Thread.sleep(500);
 							// Get Command, Blocks here until line availible in buffer or connection is
 							// closed
-							String command = inFromNextDHT.readLine();
 
-							if (command.toLowerCase().equals("ping")) {
-								outToNextDHT.writeBytes("pong");
-							}
-						} catch (IOException e) {
-							System.out.println("NextListener: " + e);
+							/*
+							 * String command = inFromNextDHT.readLine();
+							 * 
+							 * if (command.toLowerCase().equals("ping")) { outToNextDHT.writeBytes("pong");
+							 * }
+							 * 
+							 * 
+							 * 
+							 * } catch (IOException e) { System.out.println("NextListener: " + e);
+							 */
 						} catch (InterruptedException e) {
 							System.out.println(e);
 						}
 					}
-				}// End of authenticatedByID()
+				} // End of authenticatedByID()
 			}
 		}// End of run()
-		
+
 		private void connect() {
 			System.out.println("Attempting to connect to " + nextIP + ":" + TcpInPort);
 			boolean connected = false;
-			
-			
+
 			while (!isStopped() && !connected) {
-				
+
 				try {
 					Thread.sleep(2500);
 				} catch (InterruptedException e1) {
-					// TODO Auto-generated catch block
 					e1.printStackTrace();
 				}
-				
+
 				try {
 					// Connects to: remoteAddress, remotePort <-> localAddress, localPort
 					nextDhtSocket = new Socket(nextIP, TcpInPort);
@@ -176,20 +204,6 @@ public class DHT_Manager {
 			ringSize = rSize;
 		}
 
-		String sendMessage(String s) {
-			if (prevDHTSocket == null) {
-				return null;
-			} else {
-				try {
-					outToPrevDHT.writeBytes(String.format("%s\r\n", s));
-					return inFromPrevDHT.readLine();
-				} catch (IOException e) {
-					e.printStackTrace();
-					return null;
-				}
-			}
-		}
-
 		@Override
 		public void run() {
 
@@ -200,52 +214,78 @@ public class DHT_Manager {
 
 					if (authenticateID()) {
 						/*
-						 * ===========================================
-						 * RECEIVING COMMANDS FROM PREVIOUS DHT SERVER
-						 * ===========================================
+						 * =============================================================================
+						 * ============= RECEIVING COMMANDS FROM PREVIOUS DHT SERVER
+						 * =============================================================================
 						 */
 
 						System.out.println("prevDHT Accepted, listening to commands..");
 
 						// If ID is valid, start parsing for commands
 						while (!isStopped()) {
-
+							try {
+								Thread.sleep(50);
+							} catch (InterruptedException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
 							// Get Command, Blocks here until line availible in buffer or until connection
 							// is closed
-							String command = inFromPrevDHT.readLine();
-
-							if (command.toLowerCase().equals("getallip")) {
-								System.out.println("DHTinit runs here");
-								// outToNextDHTServer.writeBytes("DHTinit\n"+messageData+InetAddress.getLocalHost().getHostAddress()+"\n");
-							} // if DHTinit request
-
-							else if (command.toLowerCase().equals("query")) {
-								System.out.println("query runs here");
-								/*
-								 * TODO: If DHT contains query item return IP of client with said item to
-								 * prev.DHTserver [] Else ask next.DHTserver to query item []
-								 * 
-								 */
-							} else if (command.toLowerCase().equals("exit")) {
-								System.out.println("exit runs here");
-								/*
-								 * TODO: Remove all items with of specified IP in this.DHT [] Remove all items
-								 * with of specified IP in next.DHT []
-								 * 
-								 */
+							if (inFromPrevDHT.ready()) {
+								String command = inFromPrevDHT.readLine();
+								
+								// Init; recursively calls next server to get it's IP
+								if (command.toLowerCase().equals("get all ips")) {
+									
+									// ID of server which initially called "GET ALL IPS"
+									String startingID = inFromPrevDHT.readLine();
+									
+									// Get localIP of server
+									String iplocal = Inet4Address.getLocalHost().toString();
+									// Add ID to reply
+									iplocal = iplocal.substring(iplocal.indexOf("/") + 1, iplocal.length());
+									iplocal += "|" + ID;
+									
+									// If this command has looped back to initial caller, return nothing (already stored)
+									if (Integer.parseInt(startingID) == ID) {
+										outToPrevDHT.writeBytes(iplocal + "\r\n");
+									} else {
+										String nextIps = iplocal + "," + nextDhtCon.sendCommand("GET ALL IPS", startingID);
+										outToPrevDHT.writeBytes(nextIps + '\n');
+									}
+								} // End of Init
+								
+								// Query
+								else if (command.toLowerCase().equals("query")) {
+									System.out.println("query runs here");
+									/*
+									 * TODO: If DHT contains query item return IP of client with said item to
+									 * prev.DHTserver [] Else ask next.DHTserver to query item []
+									 * 
+									 */
+								}// End of Query
+								
+								// Exit
+								else if (command.toLowerCase().equals("exit")) {
+									System.out.println("exit runs here");
+									/*
+									 * TODO: Remove all items with of specified IP in this.DHT [] Remove all items
+									 * with of specified IP in next.DHT []
+									 * 
+									 */
+								}// Edn of Exit
 							}
 						}
 					} else {
 						System.out.println("PrevDHT rejected");
 						continue;
 					}
-				}
-				catch (IOException e) {
+				} catch (IOException e) {
 					System.out.println(e.getMessage());
 				}
 			}
 		}// End of run()
-		
+
 		private void connect() {
 
 			// Wait for incomming connection from prevDHTServer
@@ -286,5 +326,5 @@ public class DHT_Manager {
 				return false;
 			}
 		}// End of authenticateID()
-	} // End of class PrevDhtConnection 
+	} // End of class PrevDhtConnection
 }// End of class DHT_Manager

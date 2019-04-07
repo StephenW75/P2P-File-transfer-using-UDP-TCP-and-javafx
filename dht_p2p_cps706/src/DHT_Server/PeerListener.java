@@ -38,6 +38,10 @@ public class PeerListener implements Runnable {
 
 	// Query
 	byte[] query(String itemName) {
+		
+		/*
+		 * TODO: Query ALL DHTs, currently only queries local DHT
+		 */
 		// Get IP address of peer with the component from database
 		String targetIp = database.get(itemName);
 		// Response to client
@@ -45,11 +49,32 @@ public class PeerListener implements Runnable {
 		return response;
 
 	}
+	
+	// Init
+	byte[] init() {
+		/*
+		 * TODO:
+		 * Requirements:
+		 * Assume that, at the beginning, each P2P client knows IP address
+		 * of directory server with ID=0.
+		 * 
+		 * Starting with this IP address P2P client needs to ask DHT for
+		 * IP addresses of remaining servers and get them.
+		 */
+		byte[] response;
+		String[] dhtIPs = dhtManager.getAllIPs();
+		String ips = "";
+		
+		for (int i = 0; i < dhtIPs.length; ++i) {
+			ips += dhtIPs[i] + ",";
+		}
+		
+		response = ips.getBytes();
+		return response;
+	}
 
-	// Inform&Update //message = String.format("inform&update\nFileName=%s\r\n",
-	// fileName)
+	// Inform&Update
 	byte[] informUpdate(String messageData, InetAddress ip) {
-		// TODO:
 		String fileName = messageData.substring(messageData.indexOf("FileName=") + "FileName=".length(),
 				messageData.length());
 		String value = ip.toString();
@@ -67,7 +92,6 @@ public class PeerListener implements Runnable {
 	 */
 
 	public void run() {
-		System.out.println("Listening for Client Commands.");
 
 		String message;
 		String command;
@@ -108,21 +132,25 @@ public class PeerListener implements Runnable {
 			System.out.println("=== NEW MESSAGE ===");
 			System.out.println(String.format("Command: %s\nMessage: %s\nFrom: %s:%s\n", command, messageData, clientIP,
 					clientPort));
-
+			
+			byte[] response = null;;
+			
 			// Query command
 			if (command.toLowerCase().equals("query")) {
-				byte[] response = query(messageData);
-				replyToClient(response, clientIP, clientPort);
+				response = query(messageData);
 			}
 			// Init command //message = String.format("query\n%s\r\n", key);
 			else if (command.toLowerCase().equals("init")) {
-				//
+				response = init();
 			}
 			// Inform and Update command
 			else if (command.toLowerCase().equals("inform&update")) {
-				byte[] response = informUpdate(messageData, receivePacket.getAddress());
-				replyToClient(response, clientIP, clientPort);
+				response = informUpdate(messageData, receivePacket.getAddress());
+			} else {
+				response = "Command not recognized\r\n".getBytes();
 			}
+			
+			replyToClient(response, clientIP, clientPort);
 
 		} // end of while true
 	}// end of run
