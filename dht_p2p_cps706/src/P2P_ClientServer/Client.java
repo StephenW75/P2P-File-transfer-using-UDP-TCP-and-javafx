@@ -20,6 +20,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 
 public class Client extends Application {
 
@@ -44,6 +45,7 @@ public class Client extends Application {
 		pStage = primaryStage;
 		pStage.setTitle("P2P Client -> " + udpMessenger.getCurrentDHT());
 		pStage.setScene(new Scene(newGUI(pStage), 800, 600));
+		pStage.setResizable(false);
 		pStage.show();
 
 		// Some info for client-log
@@ -68,7 +70,9 @@ public class Client extends Application {
 	String[] DHTinit() {
 		String message = "init\nkthxbye\r\n";
 		String reply = udpMessenger.sendMessage(message);
-		
+		if (reply == null) {
+			return null;
+		}
 		System.out.println(reply);
 		String[] newIPs = reply.split(",");
 		return newIPs;
@@ -116,8 +120,13 @@ public class Client extends Application {
 				pushLog(informUpdate(f));
 		});
 		serverGetAll.setOnAction(e ->{
-			knownIPs = DHTinit();
-			refreshServerRadioItems(serverMenu, dhtPickerTGroup, serverGetAll);
+			String[] newKnownIPs = DHTinit();
+			if (newKnownIPs == null) {
+				pushLog("Could not get/init() server IPs");
+			} else {
+				knownIPs = newKnownIPs;
+				refreshServerRadioItems(serverMenu, dhtPickerTGroup, serverGetAll);
+			}
 		});
 		fileQuitMItem.setOnAction(e -> Platform.exit());
 		// Assemble Menu
