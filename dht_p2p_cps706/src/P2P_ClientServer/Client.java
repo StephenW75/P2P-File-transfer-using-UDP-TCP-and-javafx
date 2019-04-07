@@ -10,9 +10,11 @@ import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -26,7 +28,10 @@ public class Client extends Application {
 	private UDP_Messenger udpMessenger;
 	private TCP_Manager tcpManager;
 
+	Stage pStage;
 	TextArea logTextArea;
+	
+	String[] knownIPs = {"localhost"};
 
 	@Override
 	public void start(Stage primaryStage) throws Exception {
@@ -36,16 +41,14 @@ public class Client extends Application {
 		tcpManager = new TCP_Manager(clientPort);
 
 		// Appliation GUI start
-		primaryStage.setTitle("P2P Client");
-		primaryStage.setScene(new Scene(newGUI(primaryStage), 800, 600));
-		primaryStage.show();
+		pStage = primaryStage;
+		pStage.setTitle("P2P Client -> " + udpMessenger.getCurrentDHT());
+		pStage.setScene(new Scene(newGUI(pStage), 800, 600));
+		pStage.show();
 
 		// Some info for client-log
 		pushLog("TCP Server started on port: " + tcpManager.getLocalPort());
 		pushLog("UDP Server started on port: " + udpMessenger.getLocalPort());
-		
-		
-		pushLog(DHTinit());
 	}
 
 	// Formats message to query DHT
@@ -62,9 +65,13 @@ public class Client extends Application {
 	}
 	
 	// Init
-	String DHTinit() {
+	String[] DHTinit() {
 		String message = "init\nkthxbye\r\n";
-		return udpMessenger.sendMessage(message);
+		String reply = udpMessenger.sendMessage(message);
+		
+		System.out.println(reply);
+		String[] newIPs = reply.split(",");
+		return newIPs;
 	}
 	
 
@@ -96,19 +103,27 @@ public class Client extends Application {
 		FileChooser fChooser = new FileChooser();
 
 		// Top Menu
-		Menu file = new Menu("File");
-		MenuItem fileOpen = new MenuItem("Upload");
-		MenuItem fileQuit = new MenuItem("Quit");
+		Menu fileMenu = new Menu("File");
+		MenuItem fileOpenMItem = new MenuItem("Upload");
+		MenuItem fileQuitMItem = new MenuItem("Quit");
+		Menu serverMenu = new Menu("Select Server");
+		ToggleGroup dhtPickerTGroup = new ToggleGroup();
+		MenuItem serverGetAll = new MenuItem("Get More...");
 		// Menu Logic
-		fileOpen.setOnAction(e -> {
+		fileOpenMItem.setOnAction(e -> {
 			File f = fChooser.showOpenDialog(pStage);
 			if (f != null)
 				pushLog(informUpdate(f));
 		});
-		fileQuit.setOnAction(e -> Platform.exit());
+		serverGetAll.setOnAction(e ->{
+			knownIPs = DHTinit();
+			refreshServerRadioItems(serverMenu, dhtPickerTGroup, serverGetAll);
+		});
+		fileQuitMItem.setOnAction(e -> Platform.exit());
 		// Assemble Menu
-		MenuBar mainMenu = new MenuBar(file);
-		file.getItems().addAll(fileOpen, fileQuit);
+		MenuBar mainMenu = new MenuBar(fileMenu, serverMenu);
+		fileMenu.getItems().addAll(fileOpenMItem, fileQuitMItem);
+		refreshServerRadioItems(serverMenu, dhtPickerTGroup, serverGetAll);
 
 		// Main Area
 		ListView<File> fileListView = new ListView<File>(); // TODO: Removed "File" class cause using java.io.File
@@ -141,6 +156,27 @@ public class Client extends Application {
 		VBox mainLayout = new VBox(mainMenu, centerLayout);
 		return mainLayout;
 	}
+	
+	//refreshServerRadioItems(Menu menuToResfresh, ToggleGroup toggleGroup, MenuItem lastItem)
+	void refreshServerRadioItems(Menu menuToResfresh, ToggleGroup toggleGroup, MenuItem lastItem) {
+		menuToResfresh.getItems().clear();
+		
+		for (int i=0; i < knownIPs.length; ++i) {
+			RadioMenuItem newServer = new RadioMenuItem("ID: " + i + "IP: " + knownIPs[i]);
+			newServer.setToggleGroup(toggleGroup);
+			final String ip = knownIPs[i];
+			newServer.setOnAction(e -> {
+				udpMessenger.changeIp(ip);
+				pStage.setTitle("P2P Client -> " + udpMessenger.getCurrentDHT());
+			});;
+			menuToResfresh.getItems().add(newServer);
+		}
+		
+		menuToResfresh.getItems().add(lastItem);
+		System.out.println("Reseting name");
+		pStage.setTitle("P2P Client -> " + udpMessenger.getCurrentDHT());
+	}
+	
 
 	public static void main(String[] args) {
 		launch(args);
