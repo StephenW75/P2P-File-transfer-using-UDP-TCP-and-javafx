@@ -52,15 +52,6 @@ public class PeerListener implements Runnable {
 	
 	// Init
 	byte[] init() {
-		/*
-		 * TODO:
-		 * Requirements:
-		 * Assume that, at the beginning, each P2P client knows IP address
-		 * of directory server with ID=0.
-		 * 
-		 * Starting with this IP address P2P client needs to ask DHT for
-		 * IP addresses of remaining servers and get them.
-		 */
 		byte[] response;
 		String[] dhtIPs = dhtManager.getAllIPs();
 		String ips = "";
@@ -68,7 +59,6 @@ public class PeerListener implements Runnable {
 		for (int i = 0; i < dhtIPs.length; ++i) {
 			ips += dhtIPs[i] + ",";
 		}
-		
 		response = ips.getBytes();
 		return response;
 	}

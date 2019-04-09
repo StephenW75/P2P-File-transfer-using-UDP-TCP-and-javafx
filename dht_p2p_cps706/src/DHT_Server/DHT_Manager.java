@@ -41,7 +41,7 @@ public class DHT_Manager {
 		ex.submit(prevDhtCon);
 	}
 
-	// Ugly but it works...
+	// This server requests all IPs of other servers recursively.
 	String[] getAllIPs() {
 		// Starting ID keeps track so that servers won't keep asking for nextIPs
 		int startingID = ID;
@@ -51,6 +51,7 @@ public class DHT_Manager {
 
 		// restOfIps Format: "ip2|id2,ip3|id3,ip4|id4, ... ip1|id1END\r\n"
 		String[] idip = restOfIps.split(",");
+		// Store IPs in a String Array, index being the ID.
 		for (int i = 0; i < ringSize; ++i) {
 			String ip = idip[i].substring(0, idip[i].indexOf('|'));
 			String id = idip[i].substring(idip[i].indexOf('|') + 1, idip[i].length());
@@ -72,19 +73,18 @@ public class DHT_Manager {
 
 	/*
 	 * =============================================================================
-	 * ==== CLASSES/RUNNABLES For NextDhtConnection and PrevDhtConnection are below
+	 * ============= NextDhtConnection and PrevDhtConnection are below =============
 	 * =============================================================================
-	 * ====
 	 */
 
-	// Thread that deals with NextDhtServer
+	// Probes for Next Connect
 	private class NextDhtConnection implements Runnable {
 
 		private String nextIP;
 		private Socket nextDhtSocket;
 
-		DataOutputStream outToNextDHT;
-		BufferedReader inFromNextDHT;
+		private DataOutputStream outToNextDHT;
+		private BufferedReader inFromNextDHT;
 
 		NextDhtConnection(String nextip) {
 			nextIP = nextip;
@@ -109,17 +109,24 @@ public class DHT_Manager {
 
 		@Override
 		public void run() {
-
 			while (!isStopped()) {
-				// Connect to nextDht
-				connect();
+				
+				// Try to connect every X milliseconds
+				try {
+					Thread.sleep(500);
+				} catch (InterruptedException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+
 				// If connection is authenticated by server, return handle to socket
-				if (authenticatedByID(ID)) {
+				if (authenticatedByID(connect())) {
 
 					/*
 					 * (probably will never need to get commands from nextDHT)
-					 * ======================================= RECEIVING COMMANDS FROM NEXT DHT
-					 * SERVER =======================================
+					 * =============================================================================
+					 * ================== RECEIVING COMMANDS FROM NEXT DHTSERVER ===================
+					 * =============================================================================
 					 */
 
 					while (!isStopped()) {
@@ -142,60 +149,54 @@ public class DHT_Manager {
 							System.out.println(e);
 						}
 					}
-				} // End of authenticatedByID()
+				}
 			}
 		}// End of run()
 
-		private void connect() {
-			System.out.println("Attempting to connect to " + nextIP + ":" + TcpInPort);
-			boolean connected = false;
-
-			while (!isStopped() && !connected) {
-
-				try {
-					Thread.sleep(2500);
-				} catch (InterruptedException e1) {
-					e1.printStackTrace();
-				}
-
-				try {
-					// Connects to: remoteAddress, remotePort <-> localAddress, localPort
-					nextDhtSocket = new Socket(nextIP, TcpInPort);
-					connected = true;
-					outToNextDHT = new DataOutputStream(nextDhtSocket.getOutputStream());
-					inFromNextDHT = new BufferedReader(new InputStreamReader(nextDhtSocket.getInputStream()));
-				} catch (SocketException e) {
-					System.out.println(e.getMessage() + ". Retrying " + nextIP + ":" + TcpInPort);
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-		}
-
-		private boolean authenticatedByID(int id) {
-			// On connect, immediately send ID for simple authentication
+		private String connect() {
+			System.out.print("Attempting to connect to Next Server [" + nextIP + ":" + TcpInPort + "] ... ");
 			try {
-				outToNextDHT.writeBytes(String.format("%d\n", id));
+				nextDhtSocket = new Socket(nextIP, TcpInPort);
+				outToNextDHT = new DataOutputStream(nextDhtSocket.getOutputStream());
+				inFromNextDHT = new BufferedReader(new InputStreamReader(nextDhtSocket.getInputStream()));
 
-				if (inFromNextDHT.readLine().contains("CONNECTION OK")) {
-					System.out.println(nextDhtSocket + " Authenticated Me");
-					return true;
+				if (nextDhtSocket.isConnected() && !nextDhtSocket.isClosed()) {
+					outToNextDHT.writeBytes(String.format("%d\n", ID));
+					System.out.println("Waiting for reply");
+					String reply = inFromNextDHT.readLine();
+					return reply;
+				}
+			} catch (SocketException e) {
+				if (e.getMessage().contains("refused")) {
+					System.out.println("Connection refused, retrying.");
 				} else {
-					System.out.println(nextDhtSocket + " Rejected Me");
-					return false;
+					System.out.println(e.getMessage());
 				}
 			} catch (IOException e) {
-				System.out.println(e.getMessage());
+				e.printStackTrace();
+			}
+			return null;
+		}
+
+		private boolean authenticatedByID(String reply) {
+			
+			if (reply == null) {
+				return false;
+			}
+			
+			if (reply.contains("CONNECTION OK")) {
+				System.out.println("===== Connected to Next Server! =====");
+				return true;
+			} else {
+				System.out.println("Rejected by Next Server, retrying.");
 				return false;
 			}
 		}
 	}// End of class NextDhtConnection
 
-	// Thread that deals with PrevDhtServer
+	// Listens for a Previous Connection
 	private class PrevDhtConnection implements Runnable {
 
-		ServerSocket serverSocket;
-		Socket prevDHTSocket;
 		int ringSize;
 
 		BufferedReader inFromPrevDHT;
@@ -210,74 +211,67 @@ public class DHT_Manager {
 
 			// Wait for connection
 			while (!isStopped()) {
-				connect();
 				try {
 
-					if (authenticateID()) {
+					// Connect and authenticate
+					if (authenticateID(connect())) {
+
 						/*
 						 * =============================================================================
-						 * ============= RECEIVING COMMANDS FROM PREVIOUS DHT SERVER
+						 * ================ RECEIVING COMMANDS FROM PREVIOUS DHT SERVER ================
 						 * =============================================================================
 						 */
 
-						System.out.println("prevDHT Accepted, listening to commands..");
+						System.out.println("===== Connected to Prev Server! =====");
 
 						// If ID is valid, start parsing for commands
 						while (!isStopped()) {
-							try {
-								Thread.sleep(50);
-							} catch (InterruptedException e) {
-								// TODO Auto-generated catch block
-								e.printStackTrace();
-							}
-							// Get Command, Blocks here until line availible in buffer or until connection
-							// is closed
-							if (inFromPrevDHT.ready()) {
-								String command = inFromPrevDHT.readLine();
 
-								// Init; recursively calls next server to get it's IP
-								if (command.toLowerCase().equals("get all ips")) {
+							// Wait for incomming COMMAND\n of message: "COMMAND\nINSTRUCTIONS\r\n"
+							String command = inFromPrevDHT.readLine();
 
-									// ID of server which initially called "GET ALL IPS"
-									String startingID = inFromPrevDHT.readLine();
+							// Init: recursively calls next server to get it's IP
+							if (command.toLowerCase().equals("get all ips")) {
 
-									// Get localIP of server
-									String iplocal = getAddress("192").toString();
-									// Add ID to reply
-									iplocal = iplocal.substring(iplocal.indexOf("/") + 1, iplocal.length());
-									iplocal += "|" + ID;
+								// ID of server which initially called "GET ALL IPS"
+								String startingID = inFromPrevDHT.readLine();
 
-									// If this command has looped back to initial caller, return nothing (already
-									// stored)
-									if (Integer.parseInt(startingID) == ID) {
-										outToPrevDHT.writeBytes(iplocal + "\r\n");
-									} else {
-										String nextIps = iplocal + ","
-												+ nextDhtCon.sendCommand("GET ALL IPS", startingID);
-										outToPrevDHT.writeBytes(nextIps + '\n');
-									}
-								} // End of Init
+								// Get localIP of server
+								String iplocal = getAddress("192").toString();
+								// Add ID to reply
+								iplocal = iplocal.substring(iplocal.indexOf("/") + 1, iplocal.length());
+								iplocal += "|" + ID;
 
-								// Query
-								else if (command.toLowerCase().equals("query")) {
-									System.out.println("query runs here");
-									/*
-									 * TODO: If DHT contains query item return IP of client with said item to
-									 * prev.DHTserver [] Else ask next.DHTserver to query item []
-									 * 
-									 */
-								} // End of Query
+								// If this command has looped back to initial caller, return nothing (already
+								// stored)
+								if (Integer.parseInt(startingID) == ID) {
+									outToPrevDHT.writeBytes(iplocal + "\r\n");
+								} else {
+									String nextIps = iplocal + "," + nextDhtCon.sendCommand("GET ALL IPS", startingID);
+									outToPrevDHT.writeBytes(nextIps + '\n');
+								}
+							} // End of Init
 
-								// Exit
-								else if (command.toLowerCase().equals("exit")) {
-									System.out.println("exit runs here");
-									/*
-									 * TODO: Remove all items with of specified IP in this.DHT [] Remove all items
-									 * with of specified IP in next.DHT []
-									 * 
-									 */
-								} // Edn of Exit
-							}
+							// Query
+							else if (command.toLowerCase().equals("query")) {
+								System.out.println("query runs here");
+								/*
+								 * TODO: If DHT contains query item return IP of client with said item to
+								 * prev.DHTserver [] Else ask next.DHTserver to query item []
+								 * 
+								 */
+							} // End of Query
+
+							// Exit
+							else if (command.toLowerCase().equals("exit")) {
+								System.out.println("exit runs here");
+								/*
+								 * TODO: Remove all items with of specified IP in this.DHT [] Remove all items
+								 * with of specified IP in next.DHT []
+								 * 
+								 */
+							} // Edn of Exit
+
 						}
 					} else {
 						System.out.println("PrevDHT rejected");
@@ -309,48 +303,61 @@ public class DHT_Manager {
 			return null;
 		}
 
-		private void connect() {
-			
-			boolean connected = false;
-			
-			while (!isStopped() && !connected) {
+		private String connect() {
+			try {
+				ServerSocket serverSocket = new ServerSocket(TcpInPort);
+
 				// Wait for incomming connection from prevDHTServer
 				try {
-					serverSocket = new ServerSocket(TcpInPort);
-					System.out.println("Waiting for a prevDhtConnection on socket: " + serverSocket);
-					prevDHTSocket = serverSocket.accept();
-					connected = true;
+					System.out.println("Listening for Prev Server on port: " + serverSocket.getLocalPort());
+					// Blocks here while waiting for a connection request
+					Socket prevDHTSocket = serverSocket.accept();
+
+					// Connection request accepted, set input/output streams
 					inFromPrevDHT = new BufferedReader(new InputStreamReader(prevDHTSocket.getInputStream()));
 					outToPrevDHT = new DataOutputStream(prevDHTSocket.getOutputStream());
-				} catch (IOException e) {
-					System.out.println("PrevListener|port=" + TcpInPort + ": " + e);
-				}
-			}
 
+					// On connect get reply, and return it for authentications
+					return inFromPrevDHT.readLine();
+				} catch (IOException e) {
+					System.out.println("While listening for previous server: " + e.getMessage());
+					serverSocket.close();
+					return null;
+				}
+			} catch (IOException e1) {
+				System.out.println("Could not create server socket to listen for previous server: " + e1.getMessage());
+				return null;
+			}
 		} // End of connect()
 
-		private boolean authenticateID() {
+		private boolean authenticateID(String token) {
+
+			if (token == null) {
+				return false;
+			}
+
 			try {
 				// Get first message from prevDHTServer (should reply with "ID\n" first)
-				String message;
-				message = inFromPrevDHT.readLine();
-				int previDhtID = Integer.parseInt(message);
+				int previDhtID = Integer.parseInt(token);
 
 				// If ID is not valid (Java's modulo doesnt behave like other modulos)
 				// ((ID - 1) % ringSize + ringSize) % ringSize is a circular number
 				// with maxInt == ServerRingSize
 
+				// Returns a single-line (for readLine()) to inform if authenticated
 				if (previDhtID != ((ID - 1) % ringSize + ringSize) % ringSize) {
 					outToPrevDHT.writeBytes("CONNECTION REJECT\r\n");
-					serverSocket.close();
 					return false;
 				} else {
 					outToPrevDHT.writeBytes("CONNECTION OK\r\n");
 					return true;
 				}
 
+			} catch (NumberFormatException e) {
+				System.out.println("Could not determine ID to authenticate previous connection");
+				return false;
 			} catch (IOException e) {
-				System.out.println("PrevListener: " + e);
+				System.out.println(e.getMessage());
 				return false;
 			}
 		}// End of authenticateID()
