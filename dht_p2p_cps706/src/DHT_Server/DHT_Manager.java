@@ -37,8 +37,8 @@ public class DHT_Manager {
 		ringSize = dhtSize;
 		nextDhtCon = new NextDhtConnection(nextIp);
 		prevDhtCon = new PrevDhtConnection(dhtSize);
-		ex.submit(nextDhtCon);
 		ex.submit(prevDhtCon);
+		ex.submit(nextDhtCon);
 	}
 
 	// This server requests all IPs of other servers recursively.
@@ -96,7 +96,7 @@ public class DHT_Manager {
 			} else {
 				try {
 					String message = String.format("%s\n%s\r\n", command, instructions);
-					System.out.println("Sending to next: " + message);
+					System.out.println("Sending to next:\n" + message);
 					outToNextDHT.writeBytes(message);
 					String reply = inFromNextDHT.readLine();
 					return reply;
@@ -110,7 +110,7 @@ public class DHT_Manager {
 		@Override
 		public void run() {
 			while (!isStopped()) {
-				
+
 				// Try to connect every X milliseconds
 				try {
 					Thread.sleep(500);
@@ -123,7 +123,7 @@ public class DHT_Manager {
 				if (authenticatedByID(connect())) {
 
 					/*
-					 * (probably will never need to get commands from nextDHT)
+					 * (probably will never need to get commands from nextDHT) DO NOT USE
 					 * =============================================================================
 					 * ================== RECEIVING COMMANDS FROM NEXT DHTSERVER ===================
 					 * =============================================================================
@@ -131,22 +131,22 @@ public class DHT_Manager {
 
 					while (!isStopped()) {
 						try {
-							Thread.sleep(500);
+							Thread.sleep(50);
 							// Get Command, Blocks here until line availible in buffer or connection is
 							// closed
+								/*
+							String command = inFromNextDHT.readLine();
 
-							/*
-							 * String command = inFromNextDHT.readLine();
-							 * 
-							 * if (command.toLowerCase().equals("ping")) { outToNextDHT.writeBytes("pong");
-							 * }
-							 * 
-							 * 
-							 * 
-							 * } catch (IOException e) { System.out.println("NextListener: " + e);
-							 */
+							if (command.toLowerCase().contains("ping")) {
+								outToNextDHT.writeBytes("pong\r\n");
+							}
+
+						} catch (IOException e) {
+							System.out.println("NextListener: " + e.getMessage());
+							break;
+							*/
 						} catch (InterruptedException e) {
-							System.out.println(e);
+							System.out.println(e.getMessage());
 						}
 					}
 				}
@@ -162,7 +162,6 @@ public class DHT_Manager {
 
 				if (nextDhtSocket.isConnected() && !nextDhtSocket.isClosed()) {
 					outToNextDHT.writeBytes(String.format("%d\n", ID));
-					System.out.println("Waiting for reply");
 					String reply = inFromNextDHT.readLine();
 					return reply;
 				}
@@ -179,13 +178,13 @@ public class DHT_Manager {
 		}
 
 		private boolean authenticatedByID(String reply) {
-			
+
 			if (reply == null) {
 				return false;
 			}
-			
+
 			if (reply.contains("CONNECTION OK")) {
-				System.out.println("===== Connected to Next Server! =====");
+				System.out.println("Connected!");
 				return true;
 			} else {
 				System.out.println("Rejected by Next Server, retrying.");
@@ -212,6 +211,14 @@ public class DHT_Manager {
 			// Wait for connection
 			while (!isStopped()) {
 				try {
+					
+					// Try to connect every X milliseconds
+					try {
+						Thread.sleep(250);
+					} catch (InterruptedException e1) {
+						// TODO Auto-generated catch block
+						e1.printStackTrace();
+					}
 
 					// Connect and authenticate
 					if (authenticateID(connect())) {
@@ -245,7 +252,7 @@ public class DHT_Manager {
 								// If this command has looped back to initial caller, return nothing (already
 								// stored)
 								if (Integer.parseInt(startingID) == ID) {
-									outToPrevDHT.writeBytes(iplocal + "\r\n");
+									outToPrevDHT.writeBytes(iplocal + "\n");
 								} else {
 									String nextIps = iplocal + "," + nextDhtCon.sendCommand("GET ALL IPS", startingID);
 									outToPrevDHT.writeBytes(nextIps + '\n');
