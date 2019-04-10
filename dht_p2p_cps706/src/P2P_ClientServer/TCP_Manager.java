@@ -24,9 +24,11 @@ public class TCP_Manager {
 
 	private ServerSocket serverSocket;
 	private ExecutorService tPool;
+	File defaultDir;
 
 	// Constructor
-	TCP_Manager(int tcpPort) throws IOException {
+	TCP_Manager(int tcpPort, File defDir) throws IOException {
+		defaultDir = defDir;
 		serverSocket = new ServerSocket(tcpPort);
 		// Create a thread pool for multi-threaded TCP handling
 		tPool = Executors.newCachedThreadPool();
@@ -41,7 +43,7 @@ public class TCP_Manager {
 			Socket clientSocket = new Socket(rIP, rPORT);
 			System.out.println(
 					"TCPHandShake: Connecting to " + clientSocket.getInetAddress() + ":" + clientSocket.getPort());
-			TCP_Worker worker = new TCP_Worker(clientSocket);
+			TCP_Worker worker = new TCP_Worker(clientSocket, defaultDir);
 			tPool.submit(worker);
 			return worker;
 		} catch (IOException e) {
@@ -99,7 +101,7 @@ public class TCP_Manager {
 					return;
 				}
 				// Send the TCP connection to a new thread to handle messages / commands
-				tPool.submit(new TCP_Worker(clientSocket));
+				tPool.submit(new TCP_Worker(clientSocket, defaultDir));
 			}
 		}
 	}
@@ -119,9 +121,10 @@ class TCP_Worker implements Runnable {
 	private String threadID = Long.toString(Thread.currentThread().getId());
 	private BufferedReader in;
 	private DataOutputStream out;
-
+	private File defDir;
 	// Constructor
-	TCP_Worker(Socket cSocket) {
+	TCP_Worker(Socket cSocket, File defDir) {
+		this.defDir = defDir;
 		clientSocket = cSocket;
 
 		try {
@@ -133,6 +136,7 @@ class TCP_Worker implements Runnable {
 		}
 	}
 
+	@SuppressWarnings("resource")
 	@Override
 	public void run() {
 		System.out.println(String.format("T%s: Starting TCP with: '%s:%s'", threadID, clientSocket.getInetAddress(),
@@ -142,11 +146,19 @@ class TCP_Worker implements Runnable {
 			while (!isStopped()) {
 
 				Thread.sleep(50);
+
+				// Wait for some input
 				if (in.ready()) {
 
-					// TODO: Process Data here
+					// read the command
 					String message = in.readLine();
 					System.out.println("T" + threadID + " Receiving: " + message);
+
+					/*
+					 * ============================================================
+					 * ================== PROCESSESS COMMANDS HERE ================
+					 * ============================================================
+					 */
 
 					if (message.toLowerCase().contains("get")) {
 
@@ -155,13 +167,13 @@ class TCP_Worker implements Runnable {
 						String[] messageSplit = message.split(" ");
 						String fileName = messageSplit[1];
 
-						out.writeBytes("INCFILE axe.blend HTTP/1.1\n");
+						out.writeBytes("INCFILE " + fileName + " HTTP/1.1\n");
 
-						File toSend = new File("./axe.blend");
+						File toSend = new File(defDir.getAbsolutePath() + System.getProperty("file.separator") + fileName);
 						FileInputStream fis = new FileInputStream(toSend);
-				        BufferedInputStream bis = new BufferedInputStream(fis);
-				        
-				        OutputStream os = clientSocket.getOutputStream();
+						BufferedInputStream bis = new BufferedInputStream(fis);
+
+						OutputStream os = clientSocket.getOutputStream();
 
 						byte[] contents;
 						long fileLength = toSend.length();
@@ -178,15 +190,15 @@ class TCP_Worker implements Runnable {
 							contents = new byte[size];
 							bis.read(contents, 0, size);
 							os.write(contents);
-							System.out.print("Sending file ... " + (current * 100) / fileLength + "% complete!");
+							System.out.println("Sending file ... " + (current * 100) / fileLength + "% complete!");
 						}
 
 						System.out.println("Upload Complete");
 
-						os.flush(); 
-				        //File transfer done. Close the socket connection!
-				        clientSocket.close();
-				        System.out.println("File sent succesfully!");
+						os.flush();
+						// File transfer done. Close the socket connection!s
+						clientSocket.close();
+						System.out.println("File sent succesfully!");
 
 					} else if (message.toLowerCase().contains("incfile")) {
 
@@ -196,23 +208,24 @@ class TCP_Worker implements Runnable {
 						String fileName = messageSplit[1];
 
 						byte[] contents = new byte[10000];
-				        
-				        //Initialize the FileOutputStream to the output file's full path.
-				        FileOutputStream fos = new FileOutputStream("axe.blend");
-				        BufferedOutputStream bos = new BufferedOutputStream(fos);
-				        InputStream is = clientSocket.getInputStream();
-				        
-				        //No of bytes read in one read() call
-				        int bytesRead = 0; 
-				        
-				        while((bytesRead=is.read(contents))!=-1)
-				            bos.write(contents, 0, bytesRead); 
-				        
-				        bos.flush(); 
-				        clientSocket.close(); 
-				        
-				        System.out.println("File saved successfully!");
-						
+
+						// Initialize the FileOutputStream to the output file's full path.
+						File toGet = new File(defDir.getAbsolutePath() + System.getProperty("file.separator") + fileName);
+						FileOutputStream fos = new FileOutputStream(toGet);
+						BufferedOutputStream bos = new BufferedOutputStream(fos);
+						InputStream is = clientSocket.getInputStream();
+
+						// No of bytes read in one read() call
+						int bytesRead = 0;
+
+						while ((bytesRead = is.read(contents)) != -1)
+							bos.write(contents, 0, bytesRead);
+
+						bos.flush();
+						clientSocket.close();
+
+						System.out.println("File saved successfully!");
+
 					} else {
 						out.writeBytes("HTTP/1.1 400 Bad Request\n");
 					}

@@ -35,6 +35,7 @@ public class Client extends Application {
 	
 	String fileName;
 	String PeerIP;
+	File defDir = new File(System.getProperty("user.dir") + System.getProperty("file.separator") + "tosend");
 	
 	String[] knownIPs = {"localhost"};
 
@@ -43,7 +44,7 @@ public class Client extends Application {
 
 		// Start TCP & UDP Background processes
 		udpMessenger = new UDP_Messenger(clientPort);
-		tcpManager = new TCP_Manager(clientPort);
+		tcpManager = new TCP_Manager(clientPort, defDir);
 
 		// Appliation GUI start
 		pStage = primaryStage;
@@ -128,7 +129,9 @@ public class Client extends Application {
 	@SuppressWarnings("static-access")
 	private VBox newGUI(Stage pStage) {
 
-		FileChooser fChooser = new FileChooser();
+		
+		
+		
 		// Top Menu
 		Menu fileMenu = new Menu("File");
 		MenuItem fileOpenMItem = new MenuItem("Upload");
@@ -136,6 +139,7 @@ public class Client extends Application {
 		Menu serverMenu = new Menu("Select Server");
 		ToggleGroup dhtPickerTGroup = new ToggleGroup();
 		MenuItem serverGetAll = new MenuItem("Get More...");
+		FileChooser fChooser = new FileChooser();
 		// Menu Logic
 		fileOpenMItem.setOnAction(e -> {
 			File f = fChooser.showOpenDialog(pStage);
@@ -158,14 +162,15 @@ public class Client extends Application {
 		// Assemble Menu
 		MenuBar mainMenu = new MenuBar(fileMenu, serverMenu);
 		fileMenu.getItems().addAll(fileOpenMItem, fileQuitMItem);
+		defDir.mkdirs(); // Make default directory
+		fChooser.setInitialDirectory(defDir);
 		refreshServerRadioItems(serverMenu, dhtPickerTGroup, serverGetAll);
 
 		// Main Area
 		fileListView = new ListView<String>();
 		TextField searchTextArea = new TextField();
 		Button queryButton = new Button("Search");
-		//TODO: On File Select, change path to reflect where file will download to.
-		TextField pathTextArea = new TextField(System.getProperty("user.dir"));
+		TextField pathTextArea = new TextField(defDir.getAbsolutePath());
 		Button downloadButton = new Button("Download");
 		downloadButton.setDisable(true);
 		// Log Area
@@ -180,6 +185,8 @@ public class Client extends Application {
 			downloadButton.setDisable(true);
 		});
 		fileListView.getSelectionModel().selectedItemProperty().addListener( (v, oldval, newval) -> {
+			//TODO: On File Select, change path to reflect where file will download to.
+			pathTextArea.setText(defDir.getAbsolutePath() + System.getProperty("file.separator") + this.fileName );
 			setDownloadPeerIP(newval);
 			if (!newval.contains("null")) downloadButton.setDisable(false);
 		});
