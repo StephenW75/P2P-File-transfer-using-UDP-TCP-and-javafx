@@ -194,11 +194,15 @@ class TCP_Worker implements Runnable {
 						}
 
 						System.out.println("Upload Complete");
-
+						
+						// Close all streams
 						os.flush();
-						// File transfer done. Close the socket connection!s
+						os.close();
+						bis.close();
+						fis.close();
+						
+						// File transfer done. Close the socket connection!
 						clientSocket.close();
-						System.out.println("File sent succesfully!");
 
 					} else if (message.toLowerCase().contains("incfile")) {
 
@@ -218,13 +222,22 @@ class TCP_Worker implements Runnable {
 						// No of bytes read in one read() call
 						int bytesRead = 0;
 
-						while ((bytesRead = is.read(contents)) != -1)
+						while ((bytesRead = is.read(contents)) != -1) {
 							bos.write(contents, 0, bytesRead);
-
+						}
+						
+						System.out.println("File saved successfully!");
+						
+						// Close all streams
 						bos.flush();
+						bos.close();
+						fos.close();
+						is.close();
+						
+						// Disconnect
 						clientSocket.close();
 
-						System.out.println("File saved successfully!");
+						
 
 					} else {
 						out.writeBytes("HTTP/1.1 400 Bad Request\n");
