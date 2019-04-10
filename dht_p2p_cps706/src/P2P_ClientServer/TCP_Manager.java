@@ -122,6 +122,7 @@ class TCP_Worker implements Runnable {
 	private BufferedReader in;
 	private DataOutputStream out;
 	private File defDir;
+
 	// Constructor
 	TCP_Worker(Socket cSocket, File defDir) {
 		this.defDir = defDir;
@@ -169,76 +170,68 @@ class TCP_Worker implements Runnable {
 
 						out.writeBytes("INCFILE " + fileName + " HTTP/1.1\n");
 
-						File toSend = new File(defDir.getAbsolutePath() + System.getProperty("file.separator") + fileName);
+						File toSend = new File(
+								defDir.getAbsolutePath() + System.getProperty("file.separator") + fileName);
+
+						byte[] mybytearray = new byte[(int) toSend.length()];
 						FileInputStream fis = new FileInputStream(toSend);
 						BufferedInputStream bis = new BufferedInputStream(fis);
-
+						bis.read(mybytearray, 0, mybytearray.length);
 						OutputStream os = clientSocket.getOutputStream();
-
-						byte[] contents;
-						long fileLength = toSend.length();
-						long current = 0;
-
-						while (current != fileLength) {
-							int size = 10000;
-							if (fileLength - current >= size)
-								current += size;
-							else {
-								size = (int) (fileLength - current);
-								current = fileLength;
-							}
-							contents = new byte[size];
-							bis.read(contents, 0, size);
-							os.write(contents);
-							System.out.println("Sending file ... " + (current * 100) / fileLength + "% complete!");
-						}
-
-						System.out.println("Upload Complete");
-						
-						// Close all streams
 						os.flush();
-						os.close();
-						bis.close();
-						fis.close();
-						
+						System.out.println("Sending " + fileName + "(" + mybytearray.length + " bytes)");
+						os.write(mybytearray, 0, mybytearray.length);
+						os.flush();
+						System.out.println("Done.");
+
 						// File transfer done. Close the socket connection!
+						bis.close();
+						os.close();
 						clientSocket.close();
 
 					} else if (message.toLowerCase().contains("incfile")) {
+						int bytesRead;
+						int current = 0;
+						FileOutputStream fos = null;
+						BufferedOutputStream bos = null;
 
 						// messageSplit[0] = incfile, messageSplit[1] = fileName, messageSplit[2] =
 						// httpversion
 						String[] messageSplit = message.split(" ");
 						String fileName = messageSplit[1];
 
-						byte[] contents = new byte[10000];
-
 						// Initialize the FileOutputStream to the output file's full path.
-						File toGet = new File(defDir.getAbsolutePath() + System.getProperty("file.separator") + fileName);
-						FileOutputStream fos = new FileOutputStream(toGet);
-						BufferedOutputStream bos = new BufferedOutputStream(fos);
+						File toGet = new File(
+								defDir.getAbsolutePath() + System.getProperty("file.separator") + fileName);
+						fos = new FileOutputStream(toGet);
+						
+						
+						
+						// receive file
+						byte[] mybytearray = new byte[100000000];
 						InputStream is = clientSocket.getInputStream();
-
-						// No of bytes read in one read() call
-						int bytesRead = 0;
-
-						while ((bytesRead = is.read(contents)) != -1) {
-							bos.write(contents, 0, bytesRead);
-						}
-						
-						System.out.println("File saved successfully!");
-						
-						// Close all streams
+						bos = new BufferedOutputStream(fos);
 						bos.flush();
-						bos.close();
-						fos.close();
-						is.close();
-						
+						bytesRead = is.read(mybytearray, 0, mybytearray.length);
+						current = bytesRead;
+
+						do {
+							bytesRead = is.read(mybytearray, current, (mybytearray.length - current));
+							if (bytesRead >= 0)
+								current += bytesRead;
+						} while (bytesRead > -1);
+
+						bos.write(mybytearray, 0, current);
+						bos.flush();
+						System.out.println("File " + fileName + " downloaded (" + current + " bytes read)");
+
 						// Disconnect
+						fos.close();
+						bos.close();
 						clientSocket.close();
 
-						
-
+					} else if (message.toLowerCase().contains("400 bad request")) {
+						System.out.println("HTTP/1.1 400 Bad Request");
 					} else {
 						out.writeBytes("HTTP/1.1 400 Bad Request\n");
 					}
