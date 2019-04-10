@@ -48,10 +48,11 @@ public class DHT_Manager {
 	String[] getAllIPs() {
 		// Starting ID keeps track so that servers won't keep asking for nextIPs
 		int startingID = ID;
-		String[] allIPs = new String[ringSize];
+		String[] allIPs = new String[ringSize + 1];
 
 		String restOfIps = nextDhtCon.sendCommand("GET ALL IPS", Integer.toString(startingID));
-
+		System.out.println(restOfIps);
+		
 		// restOfIps Format: "ip2|id2,ip3|id3,ip4|id4, ... ip1|id1END\r\n"
 		String[] idip = restOfIps.split(",");
 		// Store IPs in a String Array, index being the ID.

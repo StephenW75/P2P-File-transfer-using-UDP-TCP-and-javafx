@@ -182,7 +182,7 @@ public class Client extends Application {
 		menuToResfresh.getItems().clear();
 		
 		for (int i=0; i < knownIPs.length; ++i) {
-			RadioMenuItem newServer = new RadioMenuItem("ID: " + i + "IP: " + knownIPs[i]);
+			RadioMenuItem newServer = new RadioMenuItem("ID: " + (i + 1) + "   IP: " + knownIPs[i]);
 			newServer.setToggleGroup(toggleGroup);
 			final String ip = knownIPs[i];
 			newServer.setOnAction(e -> {

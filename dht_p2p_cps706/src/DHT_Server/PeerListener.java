@@ -56,7 +56,7 @@ public class PeerListener implements Runnable {
 		String[] dhtIPs = dhtManager.getAllIPs();
 		String ips = "";
 		
-		for (int i = 0; i < dhtIPs.length; ++i) {
+		for (int i = 1; i < dhtIPs.length; ++i) {
 			ips += dhtIPs[i] + ",";
 		}
 		response = ips.getBytes();
@@ -66,7 +66,7 @@ public class PeerListener implements Runnable {
 	// Inform&Update
 	byte[] informUpdate(int hashedKey, InetAddress ip) {
 		
-		int destinationID = hashedKey%dhtManager.ringSize;
+		int destinationID = hashedKey%dhtManager.ringSize +1;
 		String value = ip.toString();
 		
 		// If the hashedKey to appropriate database
