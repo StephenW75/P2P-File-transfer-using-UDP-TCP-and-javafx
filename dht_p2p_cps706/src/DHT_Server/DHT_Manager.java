@@ -75,7 +75,7 @@ public class DHT_Manager {
 	String query(int serverID, int hashedKey) {
 		
 		// Asks Next Server if it is has item
-		return nextDhtCon.sendCommand("QUERY",String.format("%d%d", serverID, hashedKey));
+		return nextDhtCon.sendCommand("QUERY",String.format("%d,%d", serverID, hashedKey));
 	}
 
 	// Safely stops thread
@@ -312,8 +312,8 @@ public class DHT_Manager {
 								// Can i get this information?
 								if (destinationID == ID) {
 									// Store information
-									database.get(hashedKey);
-									outToPrevDHT.writeBytes(ID + "OK\r\n");
+									 String ip = database.get(hashedKey);
+									outToPrevDHT.writeBytes(ip + "\r\n");
 								} else {
 									//Ask Next Server to store information
 									outToPrevDHT.writeBytes(query(destinationID, hashedKey));
