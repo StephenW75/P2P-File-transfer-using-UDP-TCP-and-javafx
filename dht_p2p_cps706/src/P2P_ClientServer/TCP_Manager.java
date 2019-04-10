@@ -1,9 +1,16 @@
 package P2P_ClientServer;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.ExecutorService;
@@ -34,8 +41,7 @@ public class TCP_Manager {
 			Socket clientSocket = new Socket(rIP, rPORT);
 			System.out.println(
 					"TCPHandShake: Connecting to " + clientSocket.getInetAddress() + ":" + clientSocket.getPort());
-			DataOutputStream outStream = new DataOutputStream(clientSocket.getOutputStream());
-			TCP_Worker worker = new TCP_Worker(clientSocket, outStream);
+			TCP_Worker worker = new TCP_Worker(clientSocket);
 			tPool.submit(worker);
 			return worker;
 		} catch (IOException e) {
@@ -67,7 +73,6 @@ public class TCP_Manager {
 
 		private ServerSocket serverSocket;
 		private Socket clientSocket;
-		private DataOutputStream outStream;
 		private volatile boolean STOP_SIGNAL;
 
 		TCP_Greeter(ServerSocket sSocket) {
@@ -88,14 +93,13 @@ public class TCP_Manager {
 					// Block here, wait for TCP connection / hand-shake
 					System.out.println("TCP_G: Waiting for connection");
 					clientSocket = serverSocket.accept();
-					outStream = new DataOutputStream(clientSocket.getOutputStream());
 					System.out.println("TCP_G: " + clientSocket.getInetAddress() + ":" + clientSocket.getPort());
 				} catch (Exception e) {
 					System.out.println("TCP_G: " + e.getMessage());
 					return;
 				}
 				// Send the TCP connection to a new thread to handle messages / commands
-				tPool.submit(new TCP_Worker(clientSocket, outStream));
+				tPool.submit(new TCP_Worker(clientSocket));
 			}
 		}
 	}
@@ -117,15 +121,15 @@ class TCP_Worker implements Runnable {
 	private DataOutputStream out;
 
 	// Constructor
-	TCP_Worker(Socket cSocket, DataOutputStream outStream) {
-		out = outStream;
+	TCP_Worker(Socket cSocket) {
 		clientSocket = cSocket;
-		// txPool = Executors.newSingleThreadExecutor();
 
 		try {
-			in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+			out = new DataOutputStream(cSocket.getOutputStream());
+			in = new BufferedReader(new InputStreamReader(cSocket.getInputStream()));
 		} catch (IOException e) {
-			System.out.println("T" + threadID + " Could not read from socket: " + e.getMessage());
+			System.out.println("Erorr creating input/output streams " + e.getMessage());
+			signalKill();
 		}
 	}
 
@@ -136,13 +140,82 @@ class TCP_Worker implements Runnable {
 		try {
 			// If either signals are on, break loop
 			while (!isStopped()) {
-				// Thread.sleep() allows pc to chillout, was hogging too many resources
+
 				Thread.sleep(50);
 				if (in.ready()) {
 
 					// TODO: Process Data here
 					String message = in.readLine();
 					System.out.println("T" + threadID + " Receiving: " + message);
+
+					if (message.toLowerCase().contains("get")) {
+
+						// messageSplit[0] = get, messageSplit[1] = fileName, messageSplit[2] =
+						// httpversion
+						String[] messageSplit = message.split(" ");
+						String fileName = messageSplit[1];
+
+						out.writeBytes("INCFILE axe.blend HTTP/1.1\n");
+
+						File toSend = new File("./axe.blend");
+						FileInputStream fis = new FileInputStream(toSend);
+				        BufferedInputStream bis = new BufferedInputStream(fis);
+				        
+				        OutputStream os = clientSocket.getOutputStream();
+
+						byte[] contents;
+						long fileLength = toSend.length();
+						long current = 0;
+
+						while (current != fileLength) {
+							int size = 10000;
+							if (fileLength - current >= size)
+								current += size;
+							else {
+								size = (int) (fileLength - current);
+								current = fileLength;
+							}
+							contents = new byte[size];
+							bis.read(contents, 0, size);
+							os.write(contents);
+							System.out.print("Sending file ... " + (current * 100) / fileLength + "% complete!");
+						}
+
+						System.out.println("Upload Complete");
+
+						os.flush(); 
+				        //File transfer done. Close the socket connection!
+				        clientSocket.close();
+				        System.out.println("File sent succesfully!");
+
+					} else if (message.toLowerCase().contains("incfile")) {
+
+						// messageSplit[0] = incfile, messageSplit[1] = fileName, messageSplit[2] =
+						// httpversion
+						String[] messageSplit = message.split(" ");
+						String fileName = messageSplit[1];
+
+						byte[] contents = new byte[10000];
+				        
+				        //Initialize the FileOutputStream to the output file's full path.
+				        FileOutputStream fos = new FileOutputStream("axe.blend");
+				        BufferedOutputStream bos = new BufferedOutputStream(fos);
+				        InputStream is = clientSocket.getInputStream();
+				        
+				        //No of bytes read in one read() call
+				        int bytesRead = 0; 
+				        
+				        while((bytesRead=is.read(contents))!=-1)
+				            bos.write(contents, 0, bytesRead); 
+				        
+				        bos.flush(); 
+				        clientSocket.close(); 
+				        
+				        System.out.println("File saved successfully!");
+						
+					} else {
+						out.writeBytes("HTTP/1.1 400 Bad Request\n");
+					}
 
 				}
 			}
@@ -153,6 +226,10 @@ class TCP_Worker implements Runnable {
 		} catch (InterruptedException e) {
 			System.out.println("T" + threadID + ": sleep() interrupted");
 		}
+	}
+
+	void get(String fileName) {
+		sendRawMessage(String.format("GET %s HTTP/1.1\n", fileName));
 	}
 
 	void sendRawMessage(String message) {
@@ -179,7 +256,6 @@ class TCP_Worker implements Runnable {
 		try {
 			clientSocket.close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		System.out.println("T" + threadID + " client socket closed");

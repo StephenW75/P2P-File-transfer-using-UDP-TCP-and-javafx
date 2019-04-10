@@ -1,9 +1,10 @@
 package P2P_ClientServer;
 
 import java.io.File;
-
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ListView;
@@ -20,17 +21,20 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-import javafx.stage.StageStyle;
 
 public class Client extends Application {
 
-	private static final int clientPort = 7070;
+	private static final int clientPort = 20049;
 
 	private UDP_Messenger udpMessenger;
 	private TCP_Manager tcpManager;
 
 	Stage pStage;
 	TextArea logTextArea;
+	ListView<String> fileListView;
+	
+	String fileName;
+	String PeerIP;
 	
 	String[] knownIPs = {"localhost"};
 
@@ -54,10 +58,12 @@ public class Client extends Application {
 	}
 
 	// Formats message to query DHT
-	String query(String fileName) {
+	void query(String fileName) {
 		int key = hash(fileName);
 		String message = String.format("query\n%d\r\n", key);
-		return udpMessenger.sendMessage(message);
+		String reply = udpMessenger.sendMessage(message);
+		
+		populateList(fileName, reply);
 	}
 
 	// Formats message to imform and update DHT
@@ -89,6 +95,12 @@ public class Client extends Application {
 		String[] newIPs = reply.split(",");
 		return newIPs;
 	}
+	
+	void exit() {
+		/*
+		 * TODO: On Plateform.exit(), run the exit command on dht servers
+		 */
+	}
 
 	// sends message to another p2p-client
 	void p2pSend(String s) {
@@ -112,11 +124,11 @@ public class Client extends Application {
 	}
 
 	// GUI
+
 	@SuppressWarnings("static-access")
 	private VBox newGUI(Stage pStage) {
 
 		FileChooser fChooser = new FileChooser();
-
 		// Top Menu
 		Menu fileMenu = new Menu("File");
 		MenuItem fileOpenMItem = new MenuItem("Upload");
@@ -139,34 +151,53 @@ public class Client extends Application {
 				refreshServerRadioItems(serverMenu, dhtPickerTGroup, serverGetAll);
 			}
 		});
-		fileQuitMItem.setOnAction(e -> Platform.exit());
+		fileQuitMItem.setOnAction(e -> {
+			// TODO: exit() here
+			Platform.exit();
+		});
 		// Assemble Menu
 		MenuBar mainMenu = new MenuBar(fileMenu, serverMenu);
 		fileMenu.getItems().addAll(fileOpenMItem, fileQuitMItem);
 		refreshServerRadioItems(serverMenu, dhtPickerTGroup, serverGetAll);
 
 		// Main Area
-		ListView<File> fileListView = new ListView<File>(); // TODO: Removed "File" class cause using java.io.File
+		fileListView = new ListView<String>();
 		TextField searchTextArea = new TextField();
 		Button queryButton = new Button("Search");
-		TextField pathTextArea = new TextField("/path/to/download/filename.jpg");
+		//TODO: On File Select, change path to reflect where file will download to.
+		TextField pathTextArea = new TextField(System.getProperty("user.dir"));
 		Button downloadButton = new Button("Download");
+		downloadButton.setDisable(true);
 		// Log Area
 		logTextArea = new TextArea();
 		logTextArea.setStyle("-fx-focus-color: transparent; -fx-faint-focus-color: transparent;");
 		logTextArea.setEditable(false);
 		logTextArea.setMinHeight(80);
 		// Main Area Logic
-		queryButton.setOnAction(e -> pushLog(query(searchTextArea.getText())));
+		queryButton.setOnAction(e -> {
+			query(searchTextArea.getText());
+			setDownloadFileName(searchTextArea.getText());
+			downloadButton.setDisable(true);
+		});
+		fileListView.getSelectionModel().selectedItemProperty().addListener( (v, oldval, newval) -> {
+			setDownloadPeerIP(newval);
+			if (!newval.contains("null")) downloadButton.setDisable(false);
+		});
 		downloadButton.setOnAction(e -> {
-			System.out.print("d");
+			TCP_Worker newPeer = tcpManager.initHandShake(PeerIP, clientPort);
+			newPeer.get(fileName);
 		});
 		// Assemble Main Area
-		fileListView.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
+		
 		HBox queryArea = new HBox(searchTextArea, queryButton);
 		HBox downloadArea = new HBox(pathTextArea, downloadButton);
 		VBox centerLayout = new VBox(queryArea, fileListView, downloadArea, logTextArea);
 		// fileListView.setPrefHeight(Integer.MAX_VALUE);
+		fileListView.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
+        fileListView.setStyle("-fx-focus-color: transparent; -fx-faint-focus-color: transparent;");
+        
+        
+		
 		centerLayout.setVgrow(fileListView, Priority.ALWAYS);
 		queryArea.setHgrow(searchTextArea, Priority.ALWAYS);
 		downloadArea.setHgrow(pathTextArea, Priority.ALWAYS);
@@ -175,6 +206,14 @@ public class Client extends Application {
 		// Assemble main layout
 		VBox mainLayout = new VBox(mainMenu, centerLayout);
 		return mainLayout;
+	}
+	
+	void setDownloadFileName (String fileName) {
+		this.fileName = fileName;
+	}
+	
+	void setDownloadPeerIP (String ip) {
+		this.PeerIP = ip;
 	}
 	
 	//refreshServerRadioItems(Menu menuToResfresh, ToggleGroup toggleGroup, MenuItem lastItem)
@@ -195,6 +234,23 @@ public class Client extends Application {
 		menuToResfresh.getItems().add(lastItem);
 		System.out.println("Reseting name");
 		pStage.setTitle("P2P Client -> " + udpMessenger.getCurrentDHT());
+	}
+	
+	void populateList(String fileName, String reply) {
+		
+		ObservableList<String> ips = FXCollections.observableArrayList();
+		fileListView.setItems(ips);;
+		// replySplit[1] = address
+		String[] replySplit = reply.split("\n");
+		
+		for (int i = 1; i < replySplit.length; ++i) {
+			
+			String ip = replySplit[i].substring(replySplit[i].indexOf("/") + 1);
+			ip =ip.replaceAll("\n", "");
+			ip =ip.replaceAll("\r", "");
+			ips.add(ip);
+		}
+		
 	}
 	
 
