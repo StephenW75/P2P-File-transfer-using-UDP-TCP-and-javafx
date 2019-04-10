@@ -39,11 +39,15 @@ public class PeerListener implements Runnable {
 	// Query
 	byte[] query(int hashedKey) {
 		
-		/*
-		 * TODO: Query ALL DHTs, currently only queries local DHT
-		 */
-		// Get IP address of peer with the component from database
-		String targetIp = database.get(hashedKey);
+		String targetIp;
+		int destinationID = hashedKey%dhtManager.ringSize +1;
+		
+		if (dhtManager.ID == destinationID) {
+			targetIp = database.get(hashedKey);
+		} else {
+			targetIp = dhtManager.query(destinationID, hashedKey);
+		}
+		
 		// Response to client
 		byte[] response = (String.format("queryresponse\n%s\r\n", targetIp)).getBytes();
 		return response;
@@ -76,7 +80,7 @@ public class PeerListener implements Runnable {
 			dhtManager.informUpdate(destinationID, hashedKey, value);
 		}
 
-		return String.format("DHT[%d]<-{%d:%s}\r\n",destinationID , hashedKey, ip).getBytes();
+		return String.format("DHT[%d] <- { %d , %s }\r\n",destinationID , hashedKey, ip).getBytes();
 	}
 	
 	

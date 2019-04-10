@@ -71,6 +71,12 @@ public class DHT_Manager {
 		// Asks Next Server if it can store this information
 		return nextDhtCon.sendCommand("INFORM&UPDATE",String.format("%d,%d,%s", serverID, hashedKey, ip));
 	}
+	
+	String query(int serverID, int hashedKey) {
+		
+		// Asks Next Server if it is has item
+		return nextDhtCon.sendCommand("QUERY",String.format("%d%d", serverID, hashedKey));
+	}
 
 	// Safely stops thread
 	public void stop() {
@@ -270,7 +276,7 @@ public class DHT_Manager {
 									outToPrevDHT.writeBytes(nextIps + '\n');
 								}
 							} // End of Init
-							
+							// Inform and Update
 							else if (command.toLowerCase().equals("inform&update")) {
 								
 								// "%d,%d,%s\r\n" , serverID, hashedKey, ip;
@@ -288,20 +294,30 @@ public class DHT_Manager {
 									database.put(hashedKey, ip);
 									outToPrevDHT.writeBytes(ID + "OK\r\n");
 								} else {
+									//Ask Next Server to store information
 									outToPrevDHT.writeBytes(informUpdate(destinationID, hashedKey, ip));
 								}
-									//Ask Next Server to store information
-								
-								
 							}
 							// Query
 							else if (command.toLowerCase().equals("query")) {
-								System.out.println("query runs here");
-								/*
-								 * TODO: If DHT contains query item return IP of client with said item to
-								 * prev.DHTserver [] Else ask next.DHTserver to query item []
-								 * 
-								 */
+								
+								// "%d%d", serverID, hashedKey
+								// info[0] = serverID, info[1] = hashedKey
+								String[] info = inFromPrevDHT.readLine().split(",");
+								
+								// information from instructions
+								int destinationID = Integer.parseInt(info[0]);
+								int hashedKey = Integer.parseInt(info[1]);
+								
+								// Can i get this information?
+								if (destinationID == ID) {
+									// Store information
+									database.get(hashedKey);
+									outToPrevDHT.writeBytes(ID + "OK\r\n");
+								} else {
+									//Ask Next Server to store information
+									outToPrevDHT.writeBytes(query(destinationID, hashedKey));
+								}
 							} // End of Query
 
 							// Exit
