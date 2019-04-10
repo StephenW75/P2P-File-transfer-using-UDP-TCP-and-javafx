@@ -67,10 +67,10 @@ public class UDP_Messenger {
 
 		// Wait up to 5 seconds to get response for DHT server
 		try {
-			serverSocket.setSoTimeout(5000);
+			serverSocket.setSoTimeout(10000);
 			serverSocket.receive(packet);
 		} catch (SocketTimeoutException e) {
-			System.out.println("Could not receive packet, timed out after 5s");
+			System.out.println("Could not receive packet, timed out after 10s");
 			return null;
 		} catch (Exception e) {
 			System.out.println("UDP ServerSocket: " + e.getMessage());

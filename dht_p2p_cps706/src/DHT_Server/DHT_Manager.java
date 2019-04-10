@@ -24,12 +24,11 @@ public class DHT_Manager {
 	private NextDhtConnection nextDhtCon;
 	private PrevDhtConnection prevDhtCon;
 	private ExecutorService ex = Executors.newCachedThreadPool();
-	
-	
+
 	// Not private case PeerListener uses it
 	int ID;
 	int ringSize;
-	
+
 	Hashtable<Integer, String> database;
 
 	// id: ID of this server, nextIP: IP of next server, dhtRingSize: number of dht
@@ -52,7 +51,7 @@ public class DHT_Manager {
 
 		String restOfIps = nextDhtCon.sendCommand("GET ALL IPS", Integer.toString(startingID));
 		System.out.println(restOfIps);
-		
+
 		// restOfIps Format: "ip2|id2,ip3|id3,ip4|id4, ... ip1|id1END\r\n"
 		String[] idip = restOfIps.split(",");
 		// Store IPs in a String Array, index being the ID.
@@ -64,18 +63,27 @@ public class DHT_Manager {
 
 		return allIPs;
 	}
+
+	
+	
 	
 	// Inserts hashedKey into "closest" server
 	String informUpdate(int serverID, int hashedKey, String ip) {
-		
-		// Asks Next Server if it can store this information
-		return nextDhtCon.sendCommand("INFORM&UPDATE",String.format("%d,%d,%s", serverID, hashedKey, ip));
+
+		// Aske next server to store
+		return nextDhtCon.sendCommand("INFORM&UPDATE", String.format("%d,%d,%s", serverID, hashedKey, ip));
 	}
 	
+	/*
+	 * 
+	 * QUERY
+	 * 
+	 */
+
 	String query(int serverID, int hashedKey) {
-		
+
 		// Asks Next Server if it is has item
-		return nextDhtCon.sendCommand("QUERY",String.format("%d,%d", serverID, hashedKey));
+		return nextDhtCon.sendCommand("QUERY", String.format("%d,%d", serverID, hashedKey));
 	}
 
 	// Safely stops thread
@@ -113,9 +121,19 @@ public class DHT_Manager {
 			} else {
 				try {
 					String message = String.format("%s\n%s\r\n", command, instructions);
-					System.out.println("Sending to next:\n" + message);
+					// System.out.println("Sending to next:\n" + message);
 					outToNextDHT.writeBytes(message);
+					
+					System.out.print("waiting for reply .");
+					while (!inFromNextDHT.ready()) {
+						System.out.print(" .");
+						try {
+							Thread.sleep(1000);
+						} catch (InterruptedException e) {
+						}
+					}
 					String reply = inFromNextDHT.readLine();
+					System.out.println(" Reply reveived!");
 					return reply;
 				} catch (IOException e) {
 					e.printStackTrace();
@@ -150,17 +168,15 @@ public class DHT_Manager {
 							Thread.sleep(50);
 							// Get Command, Blocks here until line availible in buffer or connection is
 							// closed
-								/*
-							String command = inFromNextDHT.readLine();
-
-							if (command.toLowerCase().contains("ping")) {
-								outToNextDHT.writeBytes("pong\r\n");
-							}
-
-						} catch (IOException e) {
-							System.out.println("NextListener: " + e.getMessage());
-							break;
-							*/
+							/*
+							 * String command = inFromNextDHT.readLine();
+							 * 
+							 * if (command.toLowerCase().contains("ping")) {
+							 * outToNextDHT.writeBytes("pong\r\n"); }
+							 * 
+							 * } catch (IOException e) { System.out.println("NextListener: " +
+							 * e.getMessage()); break;
+							 */
 						} catch (InterruptedException e) {
 							System.out.println(e.getMessage());
 						}
@@ -213,12 +229,12 @@ public class DHT_Manager {
 	private class PrevDhtConnection implements Runnable {
 
 		int ringSize;
-		
+
 		ServerSocket serverSocket;
 
 		BufferedReader inFromPrevDHT;
 		DataOutputStream outToPrevDHT;
-		
+
 		// Constructor
 		PrevDhtConnection(int rSize) {
 			ringSize = rSize;
@@ -230,7 +246,7 @@ public class DHT_Manager {
 			// Wait for connection
 			while (!isStopped()) {
 				try {
-					
+
 					// Try to connect every X milliseconds
 					try {
 						Thread.sleep(250);
@@ -267,56 +283,64 @@ public class DHT_Manager {
 								iplocal = iplocal.substring(iplocal.indexOf("/") + 1, iplocal.length());
 								iplocal += "|" + ID;
 
+								System.out.print("Prev is asking for all ips ...");
+
 								// If this command has looped back to initial caller, return nothing (already
 								// stored)
 								if (Integer.parseInt(startingID) == ID) {
+									System.out.println("I'm the last one, send back my IP");
 									outToPrevDHT.writeBytes(iplocal + "\n");
 								} else {
+									System.out.println("I'm not last, add my ip to next!");
 									String nextIps = iplocal + "," + nextDhtCon.sendCommand("GET ALL IPS", startingID);
 									outToPrevDHT.writeBytes(nextIps + '\n');
 								}
 							} // End of Init
-							// Inform and Update
+								// Inform and Update
 							else if (command.toLowerCase().equals("inform&update")) {
-								
+
 								// "%d,%d,%s\r\n" , serverID, hashedKey, ip;
 								// info[0] = serverID, info[1] = hashedKey, info[2] = ip
 								String[] info = inFromPrevDHT.readLine().split(",");
-								
+
 								// information from instructions
 								int destinationID = Integer.parseInt(info[0]);
 								int hashedKey = Integer.parseInt(info[1]);
 								String ip = info[2];
-								
+
+								System.out.print("Prev is asking if i can store information ... ");
+
 								// Can i store this information?
 								if (destinationID == ID) {
 									// Store information
+									System.out.println("I am storing the information: " + hashedKey + ":" + ip);
 									database.put(hashedKey, ip);
-									outToPrevDHT.writeBytes(ID + "OK\r\n");
+									outToPrevDHT.writeBytes(ID + "\n");
 								} else {
-									//Ask Next Server to store information
-									outToPrevDHT.writeBytes(informUpdate(destinationID, hashedKey, ip));
+									// Ask Next Server to store information
+									System.out.println("I'm not in responsible for this, send to next");
+									outToPrevDHT.writeBytes(informUpdate(destinationID, hashedKey, ip)+ '\n');
 								}
 							}
 							// Query
 							else if (command.toLowerCase().equals("query")) {
-								
+
 								// "%d%d", serverID, hashedKey
 								// info[0] = serverID, info[1] = hashedKey
 								String[] info = inFromPrevDHT.readLine().split(",");
-								
+
 								// information from instructions
 								int destinationID = Integer.parseInt(info[0]);
 								int hashedKey = Integer.parseInt(info[1]);
-								
+
 								// Can i get this information?
 								if (destinationID == ID) {
 									// Store information
-									 String ip = database.get(hashedKey);
-									outToPrevDHT.writeBytes(ip + "\r\n");
+									String ip = database.get(hashedKey);
+									outToPrevDHT.writeBytes(ip + "\n");
 								} else {
-									//Ask Next Server to store information
-									outToPrevDHT.writeBytes(query(destinationID, hashedKey));
+									// Ask Next Server to store information
+									outToPrevDHT.writeBytes(query(destinationID, hashedKey) + "\n");
 								}
 							} // End of Query
 
@@ -408,7 +432,7 @@ public class DHT_Manager {
 				// with maxInt == ServerRingSize
 
 				// Returns a single-line (for readLine()) to inform if authenticated
-				if (previDhtID != new CircularNum(ringSize).getNumber(ID-1)) {
+				if (previDhtID != new CircularNum(ringSize).getNumber(ID - 1)) {
 					outToPrevDHT.writeBytes("CONNECTION REJECT\r\n");
 					return false;
 				} else {

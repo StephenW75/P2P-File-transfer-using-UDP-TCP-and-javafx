@@ -71,16 +71,19 @@ public class PeerListener implements Runnable {
 	byte[] informUpdate(int hashedKey, InetAddress ip) {
 		
 		int destinationID = hashedKey%dhtManager.ringSize +1;
+		String storedID = "ERR";
 		String value = ip.toString();
 		
 		// If the hashedKey to appropriate database
 		if (dhtManager.ID == destinationID) {
+			System.out.println("I am storing the information: " + hashedKey + ":" + ip);
 			database.put(hashedKey, value);
 		} else {
-			dhtManager.informUpdate(destinationID, hashedKey, value);
+			// ask next to store
+			storedID = dhtManager.informUpdate(destinationID, hashedKey, value);
 		}
 
-		return String.format("DHT[%d] <- { %d , %s }\r\n",destinationID , hashedKey, ip).getBytes();
+		return String.format("DHT[%s] <- { %d , %s }\r\n",storedID , hashedKey, ip).getBytes();
 	}
 	
 	
@@ -150,6 +153,7 @@ public class PeerListener implements Runnable {
 				response = "Command not recognized\r\n".getBytes();
 			}
 			
+			System.out.println("Replying to client: " + response.toString());
 			replyToClient(response, clientIP, clientPort);
 
 		} // end of while true
