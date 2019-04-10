@@ -24,14 +24,17 @@ public class DHT_Manager {
 	private NextDhtConnection nextDhtCon;
 	private PrevDhtConnection prevDhtCon;
 	private ExecutorService ex = Executors.newCachedThreadPool();
-
-	private int ID;
-	private int ringSize;
-	Hashtable<String, String> database;
+	
+	
+	// Not private case PeerListener uses it
+	int ID;
+	int ringSize;
+	
+	Hashtable<Integer, String> database;
 
 	// id: ID of this server, nextIP: IP of next server, dhtRingSize: number of dht
 	// servers
-	public DHT_Manager(Hashtable<String, String> referenceToDHT, int id, String nextIp, int dhtSize) {
+	public DHT_Manager(Hashtable<Integer, String> referenceToDHT, int id, String nextIp, int dhtSize) {
 		database = referenceToDHT;
 		ID = id;
 		ringSize = dhtSize;
@@ -59,6 +62,13 @@ public class DHT_Manager {
 		}
 
 		return allIPs;
+	}
+	
+	// Inserts hashedKey into "closest" server
+	String informUpdate(int serverID, int hashedKey, String ip) {
+		
+		// Asks Next Server if it can store this information
+		return nextDhtCon.sendCommand("INFORM&UPDATE",String.format("%d,%d,%s", serverID, hashedKey, ip));
 	}
 
 	// Safely stops thread
@@ -113,9 +123,8 @@ public class DHT_Manager {
 
 				// Try to connect every X milliseconds
 				try {
-					Thread.sleep(500);
+					Thread.sleep(3000);
 				} catch (InterruptedException e1) {
-					// TODO Auto-generated catch block
 					e1.printStackTrace();
 				}
 
@@ -197,10 +206,13 @@ public class DHT_Manager {
 	private class PrevDhtConnection implements Runnable {
 
 		int ringSize;
+		
+		ServerSocket serverSocket;
 
 		BufferedReader inFromPrevDHT;
 		DataOutputStream outToPrevDHT;
-
+		
+		// Constructor
 		PrevDhtConnection(int rSize) {
 			ringSize = rSize;
 		}
@@ -216,7 +228,6 @@ public class DHT_Manager {
 					try {
 						Thread.sleep(250);
 					} catch (InterruptedException e1) {
-						// TODO Auto-generated catch block
 						e1.printStackTrace();
 					}
 
@@ -258,7 +269,30 @@ public class DHT_Manager {
 									outToPrevDHT.writeBytes(nextIps + '\n');
 								}
 							} // End of Init
-
+							
+							else if (command.toLowerCase().equals("inform&update")) {
+								
+								// "%d,%d,%s\r\n" , serverID, hashedKey, ip;
+								// info[0] = serverID, info[1] = hashedKey, info[2] = ip
+								String[] info = inFromPrevDHT.readLine().split(",");
+								
+								// information from instructions
+								int destinationID = Integer.parseInt(info[0]);
+								int hashedKey = Integer.parseInt(info[1]);
+								String ip = info[2];
+								
+								// Can i store this information?
+								if (destinationID == ID) {
+									// Store information
+									database.put(hashedKey, ip);
+									outToPrevDHT.writeBytes(ID + "OK\r\n");
+								} else {
+									outToPrevDHT.writeBytes(informUpdate(destinationID, hashedKey, ip));
+								}
+									//Ask Next Server to store information
+								
+								
+							}
 							// Query
 							else if (command.toLowerCase().equals("query")) {
 								System.out.println("query runs here");
@@ -281,11 +315,16 @@ public class DHT_Manager {
 
 						}
 					} else {
-						System.out.println("PrevDHT rejected");
+						System.out.println("Prev Server rejected");
 						continue;
 					}
 				} catch (IOException e) {
-					System.out.println(e.getMessage());
+					System.out.println("Error while listening for Prev Server commands: " + e.getMessage());
+					try {
+						serverSocket.close();
+					} catch (IOException e1) {
+						System.out.println("Error closing Prev Server Socket: " + e.getMessage());
+					}
 				}
 			}
 		}// End of run()
@@ -312,7 +351,7 @@ public class DHT_Manager {
 
 		private String connect() {
 			try {
-				ServerSocket serverSocket = new ServerSocket(TcpInPort);
+				serverSocket = new ServerSocket(TcpInPort);
 
 				// Wait for incomming connection from prevDHTServer
 				try {
@@ -331,8 +370,8 @@ public class DHT_Manager {
 					serverSocket.close();
 					return null;
 				}
-			} catch (IOException e1) {
-				System.out.println("Could not create server socket to listen for previous server: " + e1.getMessage());
+			} catch (IOException e) {
+				System.out.println("Could not create server socket to listen for previous server: " + e.getMessage());
 				return null;
 			}
 		} // End of connect()
@@ -352,7 +391,7 @@ public class DHT_Manager {
 				// with maxInt == ServerRingSize
 
 				// Returns a single-line (for readLine()) to inform if authenticated
-				if (previDhtID != ((ID - 1) % ringSize + ringSize) % ringSize) {
+				if (previDhtID != new CircularNum(ringSize).getNumber(ID-1)) {
 					outToPrevDHT.writeBytes("CONNECTION REJECT\r\n");
 					return false;
 				} else {

@@ -26,7 +26,7 @@ public class DirectoryServer{
 		
 		System.out.println(String.format("Launching with ID:%d, nextIP:%s, RingSize:%d", id, nextIp, size));
 		
-		Hashtable<String, String> db =  initDHTable();
+		Hashtable<Integer, String> db =  initDHTable();
 		//DHT_Manager dhtManager = new DHT_Manager(db, id, nextIp, size);
 		DHT_Manager dhtManager = new DHT_Manager(db, id, nextIp, size);
 		PeerListener pListener = new PeerListener(db, dhtManager);
@@ -38,14 +38,10 @@ public class DirectoryServer{
 	
 
 	//Initialize database contents
-	 public static Hashtable<String, String> initDHTable() {
-		 Hashtable<String, String> result = new Hashtable<String, String>();
+	 public static Hashtable<Integer, String> initDHTable() {
+		 Hashtable<Integer, String> result = new Hashtable<Integer, String>();
 		 
-		 // Testing
-		 result.put("spiderman", "elsa");
-		 
-		 
-		 
+		
 		 return result; 
 		 
 	 }//end of init

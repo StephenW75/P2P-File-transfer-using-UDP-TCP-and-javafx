@@ -13,11 +13,11 @@ public class PeerListener implements Runnable {
 	private DatagramSocket socket;
 	private final int UDPInPort = 20041;
 	private final int MAX_BUFFER = 1024;
-	private Hashtable<String, String> database;
+	private Hashtable<Integer, String> database;
 	private DHT_Manager dhtManager;
 
 	// Constructor
-	PeerListener(Hashtable<String, String> referenceToDHT, DHT_Manager referenceToDHT_Manager) {
+	PeerListener(Hashtable<Integer, String> referenceToDHT, DHT_Manager referenceToDHT_Manager) {
 		database = referenceToDHT;
 		dhtManager = referenceToDHT_Manager;
 	}
@@ -37,13 +37,13 @@ public class PeerListener implements Runnable {
 	 */
 
 	// Query
-	byte[] query(String itemName) {
+	byte[] query(int hashedKey) {
 		
 		/*
 		 * TODO: Query ALL DHTs, currently only queries local DHT
 		 */
 		// Get IP address of peer with the component from database
-		String targetIp = database.get(itemName);
+		String targetIp = database.get(hashedKey);
 		// Response to client
 		byte[] response = (String.format("queryresponse\n%s\r\n", targetIp)).getBytes();
 		return response;
@@ -64,14 +64,19 @@ public class PeerListener implements Runnable {
 	}
 
 	// Inform&Update
-	byte[] informUpdate(String messageData, InetAddress ip) {
-		String fileName = messageData.substring(messageData.indexOf("FileName=") + "FileName=".length(),
-				messageData.length());
-		String value = ip.toString();
-		database.put(fileName, value);
+	byte[] informUpdate(int hashedKey, InetAddress ip) {
 		
-		byte[] response = String.format("db<-[%s:%s]\r\n", fileName, ip).getBytes();
-		return response;
+		int destinationID = hashedKey%dhtManager.ringSize;
+		String value = ip.toString();
+		
+		// If the hashedKey to appropriate database
+		if (dhtManager.ID == destinationID) {
+			database.put(hashedKey, value);
+		} else {
+			dhtManager.informUpdate(destinationID, hashedKey, value);
+		}
+
+		return String.format("DHT[%d]<-{%d:%s}\r\n",destinationID , hashedKey, ip).getBytes();
 	}
 	
 	
@@ -127,7 +132,7 @@ public class PeerListener implements Runnable {
 			
 			// Query command
 			if (command.toLowerCase().equals("query")) {
-				response = query(messageData);
+				response = query(Integer.parseInt(messageData));
 			}
 			// Init command //message = String.format("query\n%s\r\n", key);
 			else if (command.toLowerCase().equals("init")) {
@@ -135,7 +140,8 @@ public class PeerListener implements Runnable {
 			}
 			// Inform and Update command
 			else if (command.toLowerCase().equals("inform&update")) {
-				response = informUpdate(messageData, receivePacket.getAddress());
+				int key = Integer.parseInt(messageData.substring(messageData.indexOf("Key=") + "Key=".length(),messageData.length()));
+				response = informUpdate(key, receivePacket.getAddress());
 			} else {
 				response = "Command not recognized\r\n".getBytes();
 			}

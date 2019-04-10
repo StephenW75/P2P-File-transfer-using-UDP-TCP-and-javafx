@@ -54,16 +54,28 @@ public class Client extends Application {
 	}
 
 	// Formats message to query DHT
-	String query(String key) {
-		String message = String.format("query\n%s\r\n", key);
+	String query(String fileName) {
+		int key = hash(fileName);
+		String message = String.format("query\n%d\r\n", key);
 		return udpMessenger.sendMessage(message);
 	}
 
 	// Formats message to imform and update DHT
 	String informUpdate(File file) {
 		String fileName = file.getName();
-		String message = String.format("inform&update\nFileName=%s\r\n", fileName);
+		int hashedFileName = hash(fileName);
+		String message = String.format("inform&update\nKey=%d\r\n", hashedFileName);
 		return udpMessenger.sendMessage(message);
+	}
+	
+	// Hash(x) -> summation of (int)chars in x
+	int hash(String key) {
+		int hashedKey = 0;
+		char[] keyCharArr = key.toCharArray();
+		for (int i = 0; i < keyCharArr.length; ++i) {
+			hashedKey += Character.getNumericValue(keyCharArr[i]);
+		}
+		return hashedKey;
 	}
 	
 	// Init
@@ -77,7 +89,6 @@ public class Client extends Application {
 		String[] newIPs = reply.split(",");
 		return newIPs;
 	}
-	
 
 	// sends message to another p2p-client
 	void p2pSend(String s) {
